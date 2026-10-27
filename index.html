@@ -964,7 +964,7 @@ function paceText(kmh) { if (!(kmh > 0.5)) return "–"; const secs = 3600 / spD
 const hms = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`; };
 
 /* ---------- FTMS Treadmill Data (0x2ACD) decoder ---------- */
-const FTMS_SVC = 0x1826, TREAD_DATA = 0x2acd;
+const FTMS_SVC = "00001826-0000-1000-8000-00805f9b34fb", TREAD_DATA = "00002acd-0000-1000-8000-00805f9b34fb";
 function parseTreadmill(dv) {
   const o = {}; if (!dv || dv.byteLength < 2) return o;
   const f = dv.getUint16(0, true); let i = 2;
@@ -991,28 +991,55 @@ const TM = { state: "off", dev: null, ch: null, name: "", data: {}, at: 0, subs:
 const hasBT = () => !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
 function tmEmit() { TM.subs.forEach(fn => { try { fn(TM.data); } catch (e) { console.error(e); } }); }
 function tmOnValue(e) { Object.assign(TM.data, parseTreadmill(e.target.value)); TM.data.t = Date.now(); TM.at = TM.data.t; tmEmit(); }
+const TM_NAMES = ["HORIZON", "Horizon", "horizon", "HZ", "7.4", "74AT", "T7", "AT"];
+function tmErrText(e) { const m = String((e && (e.message || e)) || ""); return (e && e.name && e.name !== "Error" ? e.name + ": " : "") + m; }
 async function tmConnect(all) {
   if (!hasBT()) { openSheet(bluefyHelpHTML()); return; }
-  TM.err = ""; TM.state = "connecting"; tmRefresh();
+  TM.err = ""; TM.errStage = ""; TM.found = null; TM.state = "connecting"; tmRefresh();
+  let stage = "scan";
   try {
-    const dev = await navigator.bluetooth.requestDevice(all ? { acceptAllDevices: true, optionalServices: [FTMS_SVC] } : { filters: [{ services: [FTMS_SVC] }], optionalServices: [FTMS_SVC] });
+    const opts = all ? { acceptAllDevices: true, optionalServices: [FTMS_SVC] }
+      : { filters: [{ services: [FTMS_SVC] }, ...TM_NAMES.map(n => ({ namePrefix: n }))], optionalServices: [FTMS_SVC] };
+    const dev = await navigator.bluetooth.requestDevice(opts);
     TM.dev = dev; TM.name = dev.name || "Treadmill"; TM.wantOn = true;
     dev.addEventListener("gattserverdisconnected", tmLost);
-    await tmAttach();
+    stage = "attach"; await tmAttach();
     toast(`Connected to ${TM.name}`);
   } catch (e) {
+    const msg = tmErrText(e);
     TM.state = TM.dev && TM.ch ? "on" : "off";
-    if (!/cancel|chooser|User/i.test(e.message || "")) TM.err = e.message || String(e);
+    if (/cancel/i.test(msg) && !/^\d+$/.test(String(e && e.message))) { TM.err = ""; }
+    else { TM.err = msg || "Unknown error"; TM.errStage = TM.attachStage || stage; if (stage === "attach") { TM.wantOn = false; try { TM.dev.gatt.disconnect(); } catch (x) {} } }
   }
   tmRefresh();
 }
 async function tmAttach() {
-  const gatt = await TM.dev.gatt.connect();
-  const svc = await gatt.getPrimaryService(FTMS_SVC);
-  const ch = await svc.getCharacteristic(TREAD_DATA);
+  TM.attachStage = "connect"; const gatt = await TM.dev.gatt.connect();
+  TM.attachStage = "service"; let svc;
+  try { svc = await gatt.getPrimaryService(FTMS_SVC); }
+  catch (e) { try { const all = await gatt.getPrimaryServices(); TM.found = all.map(s => s.uuid); } catch (x) {} throw e; }
+  TM.attachStage = "data"; const ch = await svc.getCharacteristic(TREAD_DATA);
   ch.addEventListener("characteristicvaluechanged", tmOnValue);
-  await ch.startNotifications();
-  TM.ch = ch; TM.state = "on"; TM.data = {};
+  TM.attachStage = "notify"; await ch.startNotifications();
+  TM.attachStage = ""; TM.ch = ch; TM.state = "on"; TM.data = {};
+}
+function tmErrorHTML() {
+  const st = TM.errStage, map = {
+    scan: "Your iPhone didn't find the treadmill, or Bluefy isn't allowed to use Bluetooth.",
+    connect: "The treadmill was found but wouldn't accept the connection. Another app (often atZone) is probably connected to it.",
+    service: "That device doesn't offer the fitness-machine data service. It may be the treadmill's speaker connection or another device.",
+    data: "The treadmill connected but doesn't send treadmill data.",
+    notify: "The treadmill connected but wouldn't start sending live data.",
+    lost: "Lost the connection to the treadmill. Tap Connect treadmill to try again.",
+  };
+  return `<div class="note bad" style="margin:8px 0"><b>${esc(map[st] || "Couldn't connect.")}</b><div class="small" style="margin-top:4px;opacity:.8">Technical detail: ${esc(st || "?")} · ${esc(TM.err)}${TM.found ? ` · services found: ${esc(TM.found.map(u => u.slice(4, 8)).join(", ") || "none")}` : ""}</div></div>
+    <details class="tr-det" open><summary>Try these, in order</summary><ol class="small" style="padding-left:18px;margin:6px 0;display:flex;flex-direction:column;gap:4px">
+      <li>iPhone <b>Settings → Privacy &amp; Security → Bluetooth</b>: make sure <b>Bluefy</b> is switched on. Also check Settings → Bluefy → Bluetooth.</li>
+      <li>Fully close <b>atZone</b>, Zwift, Peloton, Kinomap and any other fitness app on this phone and on nearby tablets or phones. Only one app can hold the treadmill at a time.</li>
+      <li>Wake the console by pressing a button, and stay on the Home screen (don't start a programme yet).</li>
+      <li>Reset the treadmill's Bluetooth: switch it off at the wall for 2 minutes, then on again.</li>
+      <li>Tap <b>Show all devices</b> and look for a name with HORIZON, 7.4AT or AT in it. If you're unsure which one it is, pick the one that appears only while the treadmill is on.</li>
+      <li>Still stuck? Screenshot this box and the device list, and send them to Claude.</li></ol></details>`;
 }
 async function tmLost() {
   TM.ch = null; if (!TM.wantOn) { TM.state = "off"; tmRefresh(); return; }
@@ -1021,7 +1048,7 @@ async function tmLost() {
     await new Promise(r => setTimeout(r, 1500 + n * 1500));
     try { await tmAttach(); toast("Treadmill reconnected"); tmRefresh(); return; } catch (e) {}
   }
-  TM.state = "off"; TM.err = "Lost the treadmill. Tap Connect to try again."; tmRefresh();
+  TM.state = "off"; TM.errStage = "lost"; TM.err = "connection dropped"; tmRefresh();
 }
 function tmDisconnect() { TM.wantOn = false; stopDemo(); try { if (TM.dev && TM.dev.gatt.connected) TM.dev.gatt.disconnect(); } catch (e) {} TM.state = "off"; TM.ch = null; tmRefresh(); }
 function startDemo() {
@@ -1369,7 +1396,7 @@ VIEWS.tread = () => {
   const st = TM.state, data = TM.data || {};
   const connCard = st === "on" || st === "demo" || st === "reconnecting"
     ? `<div class="row between"><div><b>${esc(TM.name)}</b><div class="small muted">${st === "demo" ? "Demo mode: a pretend treadmill so you can try routes" : st === "reconnecting" ? "Reconnecting…" : Number.isFinite(data.speed) ? `Live: ${fmt(spD(data.speed), 1)} ${spU()} · incline ${fmt(data.incline || 0, 1)}%` : "Connected. Waiting for data: start the belt to see it."}</div></div><button class="btn sm" type="button" data-action="tm-disconnect">${st === "demo" ? "Exit demo" : "Disconnect"}</button></div>`
-    : hasBT() ? `<p class="small">Switch on your treadmill, then connect. Close atZone or other fitness apps first: only one app can be connected at a time.</p>${TM.err ? `<div class="note bad" style="margin:8px 0">${esc(TM.err)}</div>` : ""}<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" type="button" data-action="tm-connect" ${st === "connecting" ? "disabled" : ""}>${ICON.bt} ${st === "connecting" ? "Connecting…" : "Connect treadmill"}</button><button class="btn sm ghost" type="button" data-action="tm-connect-all">Treadmill not listed? Show all devices</button><button class="btn sm ghost" type="button" data-action="tm-demo">Demo mode</button></div>`
+    : hasBT() ? `<p class="small">Switch on your treadmill, then connect. Close atZone or other fitness apps first: only one app can be connected at a time.</p>${TM.err ? tmErrorHTML() : ""}<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" type="button" data-action="tm-connect" ${st === "connecting" ? "disabled" : ""}>${ICON.bt} ${st === "connecting" ? "Connecting…" : "Connect treadmill"}</button><button class="btn ${TM.err ? "" : "sm ghost"}" type="button" data-action="tm-connect-all">Treadmill not listed? Show all devices</button><button class="btn sm ghost" type="button" data-action="tm-demo">Demo mode</button></div>`
     : `<p class="small">${IS_COMPANION ? "This browser can't connect to Bluetooth fitness machines. On iPhone, open this page in the free <b>Bluefy</b> browser." : "Safari on iPhone can't connect to Bluetooth fitness machines. Run treadmill sessions in <b>CAS Treadmill</b> (no sign-in) inside the free <b>Bluefy</b> browser; sessions come back here with one tap."}</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" type="button" data-action="tm-bluefy">${ICON.bt} How to connect on iPhone</button><button class="btn" type="button" data-action="tm-demo">Try demo mode</button></div>`;
   return `<div class="view-head"><div><div class="eyebrow">Horizon 7.4 AT · Bluetooth FTMS</div><h1 class="h1">Treadmill</h1></div></div>${typeof treadViewExtra === "function" ? treadViewExtra() : ""}
     <section class="card tr-conn ${st === "on" ? "on" : ""}"><div class="card-head"><h2 class="h3">${ICON.bt} Treadmill link</h2><span class="pill ${st === "on" ? "good" : st === "demo" ? "accent" : ""}">${{ on: "Connected", demo: "Demo", connecting: "Connecting", reconnecting: "Reconnecting", off: "Not connected" }[st]}</span></div>${connCard}</section>
