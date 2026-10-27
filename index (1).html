@@ -1,0 +1,1445 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CAS Treadmill</title><meta name="description" content="Treadmill companion for CAS Trainer: Bluetooth FTMS link, virtual routes and interval workouts">
+<meta name="theme-color" content="#167A49"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="CAS Treadmill"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="icon-512.png"><script>window.STORE_PREFIX = "trainer.";</script>
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#EDF1EF; --surface:#FFFFFF; --surface-2:#F4F7F5; --surface-3:#E6ECE9;
+  --line:#D5DDD9; --line-strong:#B9C4BF;
+  --ink:#131A18; --ink-2:#46534E; --ink-3:#74827C;
+  --accent:#2C43E0; --accent-hover:#2336BD; --accent-ink:#FFFFFF; --accent-soft:#E1E6FF;
+  --protein:#D0306A; --carbs:#D58E00; --fat:#0F8F83; --fibre:#5E8A1E;
+  --good:#1B8E4E; --warn:#B86E00; --bad:#C8302A;
+  --good-soft:#DDF3E6; --warn-soft:#FBEBCF; --bad-soft:#FADCDA;
+  --work:#E0443F; --rest:#12907F; --prep:#D99A00; --done:#2C43E0;
+  --shadow:0 1px 2px rgba(20,30,28,.06),0 8px 24px -12px rgba(20,30,28,.18);
+  --radius:14px; --radius-sm:9px;
+  --f-display:"Big Shoulders Display","Oswald","Arial Narrow",Impact,sans-serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0C1113; --surface:#141B1E; --surface-2:#192226; --surface-3:#212C31;
+    --line:#26333A; --line-strong:#3A4A52;
+    --ink:#E5EDEA; --ink-2:#A6B4AF; --ink-3:#71807B;
+    --accent:#8394FF; --accent-hover:#9DAAFF; --accent-ink:#0C1113; --accent-soft:#1D2554;
+    --protein:#E24A80; --carbs:#B98010; --fat:#1AA596; --fibre:#9CCB55;
+    --good:#4FD28A; --warn:#FFB547; --bad:#FF6E66;
+    --good-soft:#12301F; --warn-soft:#3A2A0C; --bad-soft:#3A1614;
+    --work:#FF625C; --rest:#2FD0B9; --prep:#FFC23D; --done:#8394FF;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0C1113; --surface:#141B1E; --surface-2:#192226; --surface-3:#212C31;
+  --line:#26333A; --line-strong:#3A4A52;
+  --ink:#E5EDEA; --ink-2:#A6B4AF; --ink-3:#71807B;
+  --accent:#8394FF; --accent-hover:#9DAAFF; --accent-ink:#0C1113; --accent-soft:#1D2554;
+  --protein:#E24A80; --carbs:#B98010; --fat:#1AA596; --fibre:#9CCB55;
+  --good:#4FD28A; --warn:#FFB547; --bad:#FF6E66;
+  --good-soft:#12301F; --warn-soft:#3A2A0C; --bad-soft:#3A1614;
+  --work:#FF625C; --rest:#2FD0B9; --prep:#FFC23D; --done:#8394FF;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.5;color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button,a,label,.chip,.tab{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:45;pointer-events:none}
+h1,h2,h3,h4{margin:0;text-wrap:balance;line-height:1.1}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:minmax(0,1fr);min-height:100%}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:10px 16px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{width:34px;height:34px;flex:none}
+.brand-name{font-family:var(--f-display);font-weight:900;font-size:24px;letter-spacing:.02em;text-transform:uppercase;line-height:1;white-space:nowrap}
+.brand-name span{color:var(--accent)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sync{font-family:var(--f-mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--ink-3);display:inline-block}
+@media (max-width:460px){.sync span{display:none}.brand-name{font-size:21px}}
+.sync.ok i{background:var(--good)} .sync.busy i{background:var(--warn)} .sync.err i{background:var(--bad)}
+.icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer;color:var(--ink-2)}
+.icon-btn:hover{border-color:var(--line-strong);color:var(--ink)}
+.icon-btn svg{width:18px;height:18px}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px))}
+.tab{appearance:none;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:10px;color:var(--ink-3);font-size:11px;font-weight:600;letter-spacing:.01em;min-width:0}
+.tab svg{width:22px;height:22px}
+.tab[aria-selected="true"]{color:var(--accent)}
+.tab[aria-selected="true"] svg{stroke-width:2.4}
+.main{max-width:1180px;width:100%;margin:0 auto;padding-inline:16px;padding-block:18px 110px}
+@media (min-width:960px){
+  .app{grid-template-columns:220px minmax(0,1fr)}
+  .topbar{grid-column:1/-1}
+  .tabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + 60px);align-self:start;display:flex;flex-direction:column;gap:4px;border:0;background:none;padding:22px 12px;bottom:auto}
+  .tab{flex-direction:row;gap:12px;font-size:15px;padding:11px 14px;justify-content:flex-start}
+  .tab[aria-selected="true"]{background:var(--accent-soft)}
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected="true"]:hover{color:var(--accent)}
+  .main{padding-block:26px 60px;padding-inline:8px 24px;margin:0}
+}
+
+/* ---------- common ---------- */
+.view-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.eyebrow{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.h1{font-family:var(--f-display);font-weight:800;font-size:clamp(34px,6vw,48px);text-transform:uppercase;letter-spacing:.01em;line-height:.95}
+.h2{font-family:var(--f-display);font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:.02em}
+.h3{font-size:15px;font-weight:700}
+.sub{color:var(--ink-2);font-size:14px}
+.muted{color:var(--ink-3)}
+.small{font-size:13px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.spacer{flex:1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);min-width:0}
+.card.flat{box-shadow:none}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.divider{height:1px;background:var(--line);margin:4px 0}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;background:var(--surface-3);color:var(--ink-2);white-space:nowrap}
+.pill.accent{background:var(--accent-soft);color:var(--accent)}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.dot{width:9px;height:9px;border-radius:3px;display:inline-block;flex:none}
+.note{border-radius:var(--radius-sm);padding:10px 12px;font-size:13.5px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2)}
+.note.warn{background:var(--warn-soft);border-color:transparent;color:var(--ink)}
+.note.bad{background:var(--bad-soft);border-color:transparent;color:var(--ink)}
+.note.good{background:var(--good-soft);border-color:transparent;color:var(--ink)}
+.note b{color:var(--ink)}
+
+/* buttons */
+.btn{appearance:none;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px 15px;font-weight:600;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;min-height:40px;transition:background .15s,border-color .15s}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn.ghost:hover{background:var(--surface-3);color:var(--ink)}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
+.btn.sm{padding:5px 10px;min-height:32px;font-size:13px;border-radius:8px}
+.btn.lg{padding:13px 22px;min-height:50px;font-size:16px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn svg{width:17px;height:17px}
+
+/* forms */
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field>label,.lbl{font-size:12.5px;font-weight:600;color:var(--ink-2);letter-spacing:.01em}
+.field .hint{font-size:12px;color:var(--ink-3)}
+.field .err{font-size:12px;color:var(--bad);font-weight:600}
+.input,select.input,textarea.input{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:42px;font-size:16px;font-variant-numeric:tabular-nums}
+.input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.input[aria-invalid="true"]{border-color:var(--bad)}
+.input-unit{position:relative;display:flex;align-items:center}
+.input-unit .input{padding-right:44px}
+.input-unit span{position:absolute;right:11px;font-family:var(--f-mono);font-size:12px;color:var(--ink-3);pointer-events:none}
+.fgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))}
+.fgrid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.seg{display:inline-flex;background:var(--surface-3);border-radius:11px;padding:3px;gap:3px;flex-wrap:wrap;max-width:100%}
+.seg button{appearance:none;border:0;background:none;padding:7px 12px;border-radius:8px;font-weight:600;font-size:13.5px;color:var(--ink-2);cursor:pointer;min-height:36px}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg.full{display:flex}
+.seg.full button{flex:1}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-2);cursor:pointer}
+.check input{width:18px;height:18px;margin-top:1px;accent-color:var(--accent);flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{appearance:none;border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip:hover{border-color:var(--line-strong)}
+
+/* ---------- today ---------- */
+.datebar{display:flex;align-items:center;gap:6px}
+.datebar .date-label{font-family:var(--f-mono);font-size:13px;font-weight:500;min-width:128px;text-align:center}
+.energy{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center}
+@media (max-width:520px){.energy{grid-template-columns:1fr;justify-items:center}}
+.ring-wrap{position:relative;width:188px;height:188px;flex:none}
+.ring-wrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.ring-big{font-family:var(--f-display);font-weight:800;font-size:50px;line-height:.9;font-variant-numeric:tabular-nums}
+.ring-cap{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+.energy-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%}
+.estat{background:var(--surface-2);border-radius:11px;padding:10px 12px;min-width:0}
+.estat b{display:block;font-family:var(--f-display);font-size:26px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+.estat span{font-size:11.5px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.macros{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.macro-row{display:grid;grid-template-columns:86px 1fr auto;align-items:center;gap:12px}
+.macro-row .mname{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:7px}
+.bar{height:10px;border-radius:99px;background:var(--surface-3);overflow:hidden;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;display:block;max-width:100%}
+.bar.over i{background:repeating-linear-gradient(135deg,var(--bad) 0 6px,color-mix(in srgb,var(--bad) 70%,transparent) 6px 12px)!important}
+.macro-row .mval{font-family:var(--f-mono);font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.meal{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.meal:first-child{border-top:0;margin-top:0;padding-top:0}
+.meal-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.meal-head h3{font-family:var(--f-display);font-weight:800;text-transform:uppercase;font-size:19px;letter-spacing:.03em}
+.meal-head .mk{font-family:var(--f-mono);font-size:12.5px;color:var(--ink-3)}
+.entry{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.entry:last-child{border-bottom:0}
+.entry .en{font-weight:600;font-size:14.5px;overflow-wrap:anywhere}
+.entry .em{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)}
+.entry .ek{font-family:var(--f-mono);font-size:14px;font-weight:600;text-align:right;white-space:nowrap}
+.empty{color:var(--ink-3);font-size:13.5px;padding:6px 0}
+.water{display:flex;gap:4px;flex-wrap:wrap}
+.glass{width:22px;height:30px;border:2px solid var(--line-strong);border-top:0;border-radius:0 0 6px 6px;position:relative;overflow:hidden}
+.glass i{position:absolute;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--accent) 65%,transparent)}
+
+/* ---------- food ---------- */
+.food-tabs{margin-bottom:14px}
+.scan-drop{border:2px dashed var(--line-strong);border-radius:var(--radius);padding:26px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--surface-2);cursor:pointer}
+.scan-drop.drag{border-color:var(--accent);background:var(--accent-soft)}
+.scan-drop svg{width:46px;height:46px;color:var(--accent)}
+.scan-preview{max-height:220px;border-radius:10px;border:1px solid var(--line);object-fit:contain;background:var(--surface-2)}
+.flist{display:flex;flex-direction:column}
+.fitem{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;text-align:left;width:100%}
+.fitem:hover{background:var(--surface-2)}
+.fitem .fn{font-weight:600;overflow-wrap:anywhere}
+.fitem .fm{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)}
+.fitem .fk{font-family:var(--f-mono);font-size:13px;text-align:right;white-space:nowrap}
+.macro-strip{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--surface-3)}
+.macro-strip i{display:block;height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+
+/* ---------- sheet / modal ---------- */
+.scrim{position:fixed;inset:0;background:rgba(8,12,12,.5);z-index:120;display:flex;align-items:flex-end;justify-content:center;padding:0}
+@media (min-width:700px){.scrim{align-items:center;padding:24px}}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:92vh;max-height:92dvh;overflow:auto;border-radius:18px 18px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+@media (min-width:700px){.sheet{border-radius:18px}}
+.sheet-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.sheet-head .h2{flex:1}
+.nutri-preview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.nutri-preview div{background:var(--surface-2);border-radius:10px;padding:8px;text-align:center}
+.nutri-preview b{display:block;font-family:var(--f-display);font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.nutri-preview span{font-size:11px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:130;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+@media (min-width:960px){.toast{bottom:28px}}
+
+/* ---------- plan ---------- */
+.target-hero{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.target-hero .big{font-family:var(--f-display);font-weight:900;font-size:clamp(64px,11vw,92px);line-height:.85;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.target-hero .unit{font-family:var(--f-mono);font-size:13px;color:var(--ink-3);padding-bottom:8px;text-transform:uppercase;letter-spacing:.1em}
+.calc-chain{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.calc-chain div{background:var(--surface-2);padding:10px 12px}
+.calc-chain b{display:block;font-family:var(--f-mono);font-size:17px;font-weight:600}
+.calc-chain span{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.macro-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.macro-cards{grid-template-columns:1fr}}
+.mcard{border-radius:12px;padding:12px;border:1px solid var(--line);background:var(--surface-2);position:relative;overflow:hidden}
+.mcard::before{content:"";position:absolute;left:0;top:0;right:0;height:4px;background:var(--c)}
+.mcard .g{font-family:var(--f-display);font-weight:800;font-size:36px;line-height:1;font-variant-numeric:tabular-nums}
+.mcard .g small{font-size:18px;margin-left:2px}
+.mcard .t{font-weight:700;font-size:13px;margin-top:4px}
+.mcard .d{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 14px;font-size:14px}
+.kv dt{color:var(--ink-2)} .kv dd{margin:0;font-family:var(--f-mono);font-weight:500;text-align:right}
+details.method{border-top:1px solid var(--line);padding-top:10px}
+details.method summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--ink-2)}
+details.method ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:5px}
+
+/* ---------- train ---------- */
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+@media (max-width:1100px){.week{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}}
+.day{border:1px solid var(--line);border-radius:13px;background:var(--surface);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0;position:relative}
+.day.today{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset}
+.day .dname{font-family:var(--f-display);font-weight:800;text-transform:uppercase;font-size:20px;letter-spacing:.03em;line-height:1}
+.day .ddate{font-family:var(--f-mono);font-size:11px;color:var(--ink-3)}
+.day .dtitle{font-weight:700;font-size:14px;line-height:1.25}
+.type-tag{align-self:flex-start;font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:6px;color:#fff;background:var(--tc)}
+.t-weights{--tc:#2C43E0} .t-hiit{--tc:#D6452F} .t-tabata{--tc:#B8338F} .t-walk{--tc:#1B8E4E} .t-rest{--tc:#6D7A76}
+:root[data-theme="dark"] .t-weights{--tc:#4F63F0}
+.day .dmeta{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)}
+.day .done-flag{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--good);color:#fff;display:grid;place-items:center}
+.day .done-flag svg{width:14px;height:14px}
+.muscle-map{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+.mm{border-radius:9px;padding:7px 9px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;gap:6px}
+.mm b{font-family:var(--f-mono);font-weight:600}
+.mm.h1x{background:color-mix(in srgb,var(--accent) 12%,var(--surface-2))}
+.mm.h2x{background:color-mix(in srgb,var(--accent) 26%,var(--surface-2))}
+.mm.h3x{background:color-mix(in srgb,var(--accent) 42%,var(--surface-2))}
+.ex-list{display:flex;flex-direction:column}
+.ex{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.ex:last-child{border-bottom:0}
+.ex .exn{font-weight:600;font-size:14px}
+.ex .exm{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)}
+.ex .exs{font-family:var(--f-mono);font-size:13px;font-weight:600;white-space:nowrap}
+
+/* ---------- timer ---------- */
+.timer{border-radius:20px;padding:22px 18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);position:relative;overflow:hidden;--pc:var(--accent)}
+.timer.phase-work{--pc:var(--work)} .timer.phase-rest,.timer.phase-setrest{--pc:var(--rest)} .timer.phase-prep{--pc:var(--prep)} .timer.phase-done{--pc:var(--done)}
+.timer::before{content:"";position:absolute;inset:0;background:var(--pc);opacity:.10;transition:background .3s}
+.timer>*{position:relative}
+.timer-phase{font-family:var(--f-display);font-weight:900;font-size:clamp(30px,6vw,44px);text-transform:uppercase;letter-spacing:.06em;color:var(--pc);line-height:1}
+.timer-clock{font-family:var(--f-display);font-weight:900;font-size:clamp(110px,26vw,200px);line-height:.82;font-variant-numeric:tabular-nums;letter-spacing:-.01em;text-align:center;margin:10px 0 6px}
+.timer-move{font-size:clamp(18px,3.5vw,24px);font-weight:700;text-align:center;min-height:1.4em}
+.timer-next{text-align:center;color:var(--ink-3);font-size:13.5px;min-height:1.4em}
+.timer-meta{display:flex;justify-content:space-between;gap:10px;font-family:var(--f-mono);font-size:13px;color:var(--ink-2);flex-wrap:wrap}
+.timer-track{display:flex;gap:3px;margin:14px 0 4px}
+.timer-track i{flex:1;height:8px;border-radius:3px;background:var(--surface-3)}
+.timer-track i.w{background:color-mix(in srgb,var(--work) 30%,var(--surface-3))}
+.timer-track i.r{background:color-mix(in srgb,var(--rest) 30%,var(--surface-3));flex:.5}
+.timer-track i.past.w{background:var(--work)} .timer-track i.past.r{background:var(--rest)}
+.timer-track i.now{outline:2px solid var(--ink);outline-offset:1px}
+.timer-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.timer-controls .btn.go{background:var(--pc);border-color:var(--pc);color:#fff;min-width:150px}
+
+/* ---------- fasting ---------- */
+.fast-hero{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center}
+@media (max-width:620px){.fast-hero{grid-template-columns:1fr;justify-items:center;text-align:center}}
+.clock-wrap{position:relative;width:230px;height:230px}
+.clock-wrap svg{width:100%;height:100%}
+.clock-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.clock-center b{font-family:var(--f-display);font-weight:900;font-size:46px;line-height:.9;font-variant-numeric:tabular-nums}
+.stages{display:flex;flex-direction:column;gap:6px}
+.stage{display:grid;grid-template-columns:52px 1fr;gap:10px;font-size:13.5px;padding:7px 10px;border-radius:9px;color:var(--ink-3)}
+.stage b{font-family:var(--f-mono);font-weight:600}
+.stage.on{background:var(--accent-soft);color:var(--ink)}
+.stage.past{color:var(--ink-2)}
+
+/* ---------- progress ---------- */
+.chart{width:100%;height:auto;display:block}
+.chart text{font-family:var(--f-mono);font-size:15px;fill:var(--ink-3)}
+.chart .grid-line{stroke:var(--line);stroke-width:1}
+.chart-tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;font-weight:600;padding:5px 9px;border-radius:7px;white-space:nowrap;z-index:5}
+.tbl-wrap{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+.tbl td{padding:7px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tbl td.r,.tbl th.r{text-align:right}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.kpi{background:var(--surface-2);border-radius:12px;padding:12px}
+.kpi b{display:block;font-family:var(--f-display);font-size:30px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--ink-3);font-weight:600}
+
+.setup-banner{background:var(--ink);color:var(--bg);border-radius:var(--radius);padding:16px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.setup-banner .h2{color:var(--bg)}
+.setup-banner p{color:color-mix(in srgb,var(--bg) 78%,var(--ink));font-size:14px}
+.setup-banner .btn.primary{margin-left:auto}
+.store-banner{grid-column:1/-1;background:var(--warn-soft);color:var(--ink);padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:14px;font-weight:600;text-align:center}
+.spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--line-strong);border-top-color:var(--accent);animation:spin .8s linear infinite;display:inline-block;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+:root{--accent:#167A49;--accent-hover:#11633B;--accent-soft:#DCF1E5;--accent-ink:#fff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--accent:#3FCB82;--accent-hover:#62D99A;--accent-soft:#12301F;--accent-ink:#0C1113}}
+:root[data-theme="dark"]{--accent:#3FCB82;--accent-hover:#62D99A;--accent-soft:#12301F;--accent-ink:#0C1113}
+.hero{display:flex;flex-direction:column;gap:12px;align-items:flex-start;padding:22px}
+.coach-card{background:var(--ink);color:var(--bg);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden}
+.coach-card::after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:var(--accent);opacity:.35}
+.coach-q{font-family:var(--f-display);font-weight:800;font-size:clamp(22px,5vw,30px);line-height:1.12;text-transform:none;position:relative;max-width:40ch}
+.coach-by{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.75;margin-top:8px;position:relative}
+.ex-mini{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column}
+.ex-mini li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.ex-mini li:last-child{border-bottom:0}
+.week-dots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px}
+.wd{aspect-ratio:1;max-width:100%;border-radius:50%;display:grid;place-items:center;background:var(--surface-3);font-weight:700;font-size:12px;color:var(--ink-3)}
+.wd.plan{background:var(--accent-soft);color:var(--accent)}
+.wd.done{background:var(--accent);color:var(--accent-ink)}
+.wd.now{outline:2px solid var(--ink);outline-offset:2px}
+.why{font-size:16px;line-height:1.5}
+.saved-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.saved-row:last-child{border-bottom:0}
+.danger-arm{color:var(--bad);border-color:var(--bad)}
+.fn{font-weight:600}
+.plan-week{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr))}
+.pday{appearance:none;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:5px;color:inherit;box-shadow:var(--shadow);min-width:0}
+.pday.today{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset}
+.pday.rest{background:var(--surface-2);box-shadow:none;cursor:default}
+.pday .dname{font-family:var(--f-display);font-weight:800;text-transform:uppercase;font-size:20px;letter-spacing:.03em}
+.pday .dtitle{font-weight:700;font-size:15px}
+.pblock{background:var(--surface-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.pgroup{border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+.pex{appearance:none;background:none;border:0;border-bottom:1px dashed var(--line);width:100%;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;text-align:left;cursor:pointer;color:inherit}
+.pgroup .pex:last-child{border-bottom:0}
+.pex-tag{font-family:var(--f-mono);font-weight:600;font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:3px 7px;min-width:30px;text-align:center}
+.pex-tag.big{font-size:15px;padding:5px 10px}
+.lib{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr))}
+.lib-item{appearance:none;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;cursor:pointer;color:inherit;text-align:left;display:flex;flex-direction:column;min-width:0}
+.lib-cv{width:100%;aspect-ratio:4/3;display:block;background:var(--surface-2)}
+.lib-txt{padding:9px 10px 11px;display:flex;flex-direction:column;gap:2px}
+.demo-cv{width:100%;max-width:520px;aspect-ratio:4/3;display:block;margin:0 auto;background:var(--surface-2);border-radius:14px}
+.demo-cv.small{max-width:300px}
+.stills{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stills figure{margin:0;display:flex;flex-direction:column;gap:4px;align-items:center}
+.still-cv{width:100%;aspect-ratio:4/3;background:var(--surface-2);border-radius:10px}
+.stills figcaption{font-family:var(--f-mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3)}
+.cues{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:14.5px}
+.cues.avoid li::marker{color:var(--bad)}
+.logrow{border-bottom:1px solid var(--line);padding:8px 0}
+.logrow summary{cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center;list-style:none}
+.logrow summary::-webkit-details-marker{display:none}
+.logrow ul{margin:8px 0 0;padding-left:18px;color:var(--ink-2)}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.badge{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--surface-2);color:var(--ink-3);font-size:13px;font-weight:600}
+.badge svg{width:18px;height:18px;flex:none}
+.badge.got{background:var(--accent-soft);color:var(--accent)}
+
+/* player */
+.player{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.pl-top{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 8px}
+.pl-x{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 12px 7px 9px;display:flex;gap:5px;align-items:center;font-weight:700;font-size:13px;cursor:pointer}
+.pl-x svg{width:16px;height:16px}
+.pl-title{font-weight:700;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-prog{height:5px;background:var(--surface-3);margin:0 16px}
+.pl-prog i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.pl-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;max-width:640px;width:100%;margin:0 auto;-webkit-overflow-scrolling:touch}
+.pl-body.center{align-items:center;text-align:center}
+.pl-name{font-size:clamp(30px,8vw,44px)}
+.pl-target{font-family:var(--f-display);font-weight:900;font-size:clamp(40px,12vw,64px);line-height:.95;color:var(--accent)}
+.pl-prompt{font-size:17px;font-weight:600;color:var(--ink-2)}
+.pl-nav{display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 12px);border-top:1px solid var(--line);background:var(--surface);max-width:100%}
+.pl-nav .btn.lg{min-height:54px}
+.rest-clock{font-family:var(--f-display);font-weight:900;font-size:clamp(84px,26vw,150px);line-height:.9;font-variant-numeric:tabular-nums}
+.hold{display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--surface-2);border-radius:14px;padding:14px}
+.hold-clock{font-family:var(--f-display);font-weight:900;font-size:80px;line-height:.9}
+.iv-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center}
+.iv-label{font-size:20px;font-weight:700}
+.iv-speed{display:flex;gap:22px}
+.iv-speed div{display:flex;flex-direction:column}
+.iv-speed b{font-size:34px;font-weight:600}
+.iv-speed span{font-size:12px;color:var(--ink-3)}
+.tech summary{cursor:pointer;font-weight:700}
+.done-badge{width:84px;height:84px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center}
+.done-badge svg{width:42px;height:42px}
+.stepper{display:grid;grid-template-columns:48px 1fr 48px;gap:6px;align-items:center}
+.step{appearance:none;height:48px;border-radius:12px;border:1px solid var(--line-strong);background:var(--surface);font-size:24px;font-weight:700;cursor:pointer;color:var(--ink)}
+.stepper .input{text-align:center;font-size:20px;font-weight:600;min-height:48px;padding:6px 4px;min-width:0}
+/* v2 */
+.sheet-back{margin:-6px 0 6px -8px}
+.wz-dots{display:flex;gap:6px;margin:-4px 0 14px}
+.wz-dots span{flex:1;height:6px;border-radius:99px;background:var(--surface-3);font-size:0}
+.wz-dots span.done{background:var(--accent)}.wz-dots span.now{background:var(--accent);opacity:.55}
+.wz-nav{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:6px}
+.wz-nav .btn.lg{justify-self:end}
+.parq{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);font-size:14px}
+@media (max-width:420px){.parq{grid-template-columns:1fr}}
+.review{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.review div{background:var(--surface-2);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:2px}
+.review span{font-size:11.5px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.sched{display:flex;flex-direction:column}
+.sched-row{display:grid;grid-template-columns:56px 1fr 42px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.sched-row:last-child{border-bottom:0}
+.sched-row .dname{font-family:var(--f-display);font-weight:800;font-size:19px;text-transform:uppercase}
+.sched-row select{min-width:0}
+.linkish{appearance:none;background:none;border:0;padding:0;text-align:left;cursor:pointer;color:inherit;font:inherit;min-width:0}
+button.linkish{color:var(--accent);font-weight:600}
+.saved-row .linkish{color:inherit;font-weight:inherit}
+.saved-row{grid-template-columns:1fr auto auto auto}
+.plan-notes{margin:0;padding-left:18px;color:var(--ink-2);display:flex;flex-direction:column;gap:6px}
+.cal-card{padding:12px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-h{font-family:var(--f-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);text-align:center;padding:4px 0}
+.cal-d{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:10px;min-height:68px;padding:5px;display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;cursor:pointer;color:inherit;min-width:0;overflow:hidden}
+.cal-d.out{opacity:.4}
+.cal-d.today{border-color:var(--ink);box-shadow:0 0 0 1.5px var(--ink) inset}
+.cal-d.plan{background:var(--accent-soft)}
+.cal-d.done{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cal-n{font-weight:700;font-size:13px;display:flex;gap:4px;align-items:center}
+.cal-t{font-size:10.5px;line-height:1.15;font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word}
+.cal-dl{font-family:var(--f-mono);font-size:9px;text-transform:uppercase;opacity:.7}
+.cal-over{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn)}
+@media (max-width:420px){.cal-d{min-height:58px;padding:4px}.cal-t{font-size:9.5px;-webkit-line-clamp:2}}
+.big-num{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1}
+.tbar{height:12px;border-radius:99px;background:var(--surface-3);overflow:hidden;margin:10px 0 8px}
+.tbar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px;margin-top:10px}
+.zone{border-radius:9px;padding:6px 8px;display:flex;flex-direction:column;font-size:12px;border-left:5px solid var(--zc);background:var(--surface-2)}
+.zone b{font-size:12px}
+.z1{--zc:#8FA3B0}.z2{--zc:#2E9E6A}.z3{--zc:#D9A400}.z4{--zc:#E2742B}.z5{--zc:#D6332F}
+.zbar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:8px;gap:2px}
+.zbar.big{height:16px}
+.zbar i{display:block;background:var(--zc)}
+.rpe{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px}
+.rpe button{appearance:none;border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;min-height:40px;font-weight:700;cursor:pointer;color:var(--ink)}
+.rpe button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.watch-guide ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:14px}
+.watch-guide code{background:var(--surface-3);padding:1px 5px;border-radius:5px;font-size:12px;word-break:break-all}
+.bd-list{display:flex;flex-direction:column;gap:8px}
+.bd-item{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.bd-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.bd-fields label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.bd-fields .input{min-height:38px;padding:6px 8px}
+.chart{width:100%;height:auto;display:block}
+.chart text{font-family:var(--f-mono);font-size:14px;fill:var(--ink-3)}
+.chart .grid-line{stroke:var(--line);stroke-width:1}
+
+/* ===================== Treadmill ===================== */
+.tr-sec{margin:22px 0 2px}
+.tr-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,155px),1fr));gap:10px;margin-top:10px}
+.tr-card{display:flex;flex-direction:column;gap:3px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:8px 8px 10px;cursor:pointer;box-shadow:var(--shadow);min-width:0}
+.tr-card b{font-size:14.5px;line-height:1.2;margin-top:4px}
+.tr-thumb{display:block;height:58px;border-radius:9px;overflow:hidden;padding:6px 4px 0}
+.prof{width:100%;height:100%;display:block}
+.t-loch{background:linear-gradient(#CFE6F4,#E8F3F9)}.t-glen{background:linear-gradient(#DCE6EE,#EEF2F4)}.t-mountain{background:linear-gradient(#CFE1F1,#ECF3F9)}.t-city{background:linear-gradient(#F8DCC4,#FBF0E5)}.t-coast{background:linear-gradient(#CDEBF7,#F2F0E2)}.t-forest{background:linear-gradient(#D6E6DC,#EEF4EF)}
+.tr-prof-big{height:110px;border-radius:12px;padding:10px 6px 0;margin-top:10px}
+.tr-conn.on{border-color:var(--good)}
+.tr-conn h2 svg{width:18px;height:18px;vertical-align:-3px}
+.tr-hist{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;cursor:pointer}
+.tr-hist>span:first-child{display:flex;flex-direction:column}
+.tr-det summary{cursor:pointer;font-weight:600;margin-top:6px}
+.tr-safety summary{cursor:pointer}
+.tr-safety ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.tread-run .pl-top .pill svg{width:13px;height:13px}
+.tr-scene{height:clamp(170px,32vh,300px);flex:none;background:#CFE1F1}
+.tr-scene canvas{width:100%;height:100%;display:block}
+.tr-body{gap:10px;padding-top:10px}
+.tr-big{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tr-big div{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px;display:flex;flex-direction:column}
+.tr-big b{font-family:var(--f-display);font-size:clamp(34px,10vw,52px);line-height:1;font-weight:900}
+.tr-big span,.tr-grid span{font-size:12px;color:var(--ink-3)}
+.tr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tr-grid div{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:7px 9px;display:flex;flex-direction:column;min-width:0}
+.tr-grid b{font-family:var(--f-display);font-size:26px;line-height:1.05;font-weight:800}
+.tr-grid div.off{border-color:var(--warn);background:var(--warn-soft)}
+.tr-prof{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 8px}
+.tr-prof .prof{height:56px}
+.tr-msg{background:var(--ink);color:var(--bg);border-radius:var(--radius-sm);padding:10px 12px;font-weight:600}
+#tr-msg{display:flex;flex-direction:column;gap:6px}
+.tr-demo{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--surface-2);border:1px dashed var(--line-strong);border-radius:var(--radius-sm);padding:8px}
+
+#tabs{display:none}#btn-settings{display:none}
+</style>
+</head><body>
+<div class="app" id="app">
+  <header class="topbar"><div class="topbar-in">
+    <div class="brand"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><rect x="1" y="1" width="38" height="38" rx="10" fill="var(--accent)"/><rect x="7" y="13" width="4" height="14" rx="1.5" fill="#fff"/><rect x="12" y="10" width="4" height="20" rx="1.5" fill="#fff"/><rect x="16" y="18.5" width="8" height="3" fill="#fff"/><rect x="24" y="10" width="4" height="20" rx="1.5" fill="#fff"/><rect x="29" y="13" width="4" height="14" rx="1.5" fill="#fff"/></svg><div class="brand-name">CAS <span>Treadmill</span></div></div>
+    <div class="top-actions"><div class="sync" id="sync"><i></i><span>Loading</span></div><button class="icon-btn" id="btn-settings" type="button" aria-label="Settings" data-action="open-settings"></button></div>
+  </div></header>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections"></nav>
+  <main class="main" id="main"></main>
+</div>
+<div id="sheet-root"></div><div id="run-root"></div><div id="toast-root" aria-live="polite"></div>
+<script>
+"use strict";
+/* CAS Treadmill: on-device store (no account). Same interface as the Backlit Store. */
+window.CAS_COMPANION = true;
+const LS = window["local" + "Storage"];
+const Store = {
+  docs: {}, onStatus: null, prefix: "castread.",
+  status(s, l) { if (typeof this.onStatus === "function") this.onStatus(s, l); },
+  async init() {
+    try { for (let i = 0; i < LS.length; i++) { const k = LS.key(i); if (k && k.startsWith(this.prefix)) { try { this.docs[k.slice(this.prefix.length)] = JSON.parse(LS.getItem(k)); } catch (e) {} } } this.status("ok", "On this phone"); return "local"; }
+    catch (e) { this.status("err", "Not saving"); return "error"; }
+  },
+  get(key, fallback) { return Object.prototype.hasOwnProperty.call(this.docs, key) ? this.docs[key] : fallback; },
+  keys(prefix) { return Object.keys(this.docs).filter(k => k.startsWith(prefix || "")); },
+  set(key, value) { this.docs[key] = value; try { LS.setItem(this.prefix + key, JSON.stringify(value)); } catch (e) { this.status("err", "Phone storage full"); } },
+  async remove(key) { delete this.docs[key]; try { LS.removeItem(this.prefix + key); } catch (e) {} },
+};
+
+/* ============================================================
+   CAS shared UI helpers: DOM, formatting, shell, sheets, toasts,
+   event delegation, icons, sound and screen wake.
+   ============================================================ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ESC[c]);
+const fmt = (n, d = 0) => Number.isFinite(n) ? n.toLocaleString("en-GB", { maximumFractionDigits: d, minimumFractionDigits: d }) : "–";
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
+const clone = o => JSON.parse(JSON.stringify(o));
+const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+const num = v => { if (v === "" || v == null) return NaN; const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) ? n : NaN; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function dkey(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function parseKey(k) { const [y, m, d] = String(k).split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1, 12); }
+function addDays(k, n) { const d = parseKey(k); d.setDate(d.getDate() + n); return dkey(d); }
+function weekdayIdx(k) { return (parseKey(k).getDay() + 6) % 7; }
+function mondayOf(k) { return addDays(k, -weekdayIdx(k)); }
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function prettyDate(k, o = { weekday: "short", day: "numeric", month: "short" }) { return parseKey(k).toLocaleDateString("en-GB", o); }
+function mmss(sec) { sec = Math.max(0, Math.round(sec)); const m = Math.floor(sec / 60), s = sec % 60; return `${m}:${String(s).padStart(2, "0")}`; }
+function durText(sec) { sec = Math.round(sec); const m = Math.floor(sec / 60), s = sec % 60; return m ? `${m} min${s ? " " + s + " s" : ""}` : `${s} s`; }
+
+const I = (p, extra = "") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${p}</svg>`;
+const ICON = {
+  gear: I('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  plus: I('<path d="M12 5v14M5 12h14"/>'),
+  x: I('<path d="M18 6 6 18M6 6l12 12"/>'),
+  left: I('<path d="m15 18-6-6 6-6"/>'),
+  right: I('<path d="m9 18 6-6-6-6"/>'),
+  check: I('<path d="M20 6 9 17l-5-5"/>', 'stroke-width="3"'),
+  trash: I('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'),
+  play: I('<path d="M7 4v16l13-8z" fill="currentColor"/>'),
+  pause: I('<path d="M7 4h3v16H7zM14 4h3v16h-3z" fill="currentColor"/>'),
+  skip: I('<path d="M5 4v16l10-8zM18 4v16"/>'),
+  back: I('<path d="M19 4v16L9 12zM6 4v16"/>'),
+  reset: I('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>'),
+  edit: I('<path d="M4 20h4L19 9l-4-4L4 16z"/>'),
+  copy: I('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>'),
+  timer: I('<circle cx="12" cy="14" r="7"/><path d="M12 10v4M10 3h4M18.5 7.5l1.5-1.5"/>'),
+  list: I('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'),
+  clock: I('<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/>'),
+  star: I('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>'),
+  starFill: I('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" fill="currentColor"/>'),
+  dumbbell: I('<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>'),
+  book: I('<path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2.5zM20 19v3H6"/>'),
+  trophy: I('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>'),
+  wand: I('<path d="m15 4 5 5M4 20l11-11M14 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1zM19 13l.7 1.3 1.3.7-1.3.7L19 17l-.7-1.3L17 15l1.3-.7z"/>'),
+  video: I('<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/>'),
+  volume: I('<path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'),
+};
+
+/* ---------- shell ---------- */
+const VIEWS = {}, AFTER = {}, ACTIONS = {}, INPUTS = {}, CHANGES = {}, SUBMITS = {};
+const APP = { tabs: [], tab: null, brand: "", onRender: null };
+function setSync(state, label) {
+  const el = $("#sync"); if (!el) return;
+  el.className = "sync " + (state === "ok" ? "ok" : state === "busy" ? "busy" : state === "err" ? "err" : "");
+  el.querySelector("span").textContent = label;
+}
+Store.onStatus = setSync;
+function renderTabs() {
+  const t = $("#tabs"); if (!t) return;
+  t.style.gridTemplateColumns = `repeat(${APP.tabs.length},1fr)`;
+  t.innerHTML = APP.tabs.map(([id, label, icon]) => `<button class="tab" role="tab" type="button" data-action="tab" data-tab="${id}" aria-selected="${APP.tab === id}" id="tab-${id}">${ICON[icon] || ""}<span>${label}</span></button>`).join("");
+}
+function render() {
+  renderTabs();
+  const main = $("#main"), fn = VIEWS[APP.tab];
+  try { main.innerHTML = fn ? fn() : ""; if (AFTER[APP.tab]) AFTER[APP.tab](); }
+  catch (e) { console.error(e); main.innerHTML = `<div class="note bad"><b>Something went wrong showing this page.</b> Your data is safe. Try another tab or reload. (${esc(e.message)})</div>`; }
+}
+function go(tab) { if (!VIEWS[tab]) return; APP.tab = tab; render(); window.scrollTo({ top: 0 }); }
+ACTIONS.tab = el => go(el.dataset.tab);
+function toast(msg) {
+  const root = $("#toast-root"); if (!root) return;
+  root.innerHTML = `<div class="toast" role="status">${esc(msg)}</div>`;
+  clearTimeout(toast._t); toast._t = setTimeout(() => { root.innerHTML = ""; }, 2600);
+}
+let sheetOnClose = null;
+const SHEETS = [];
+/* openSheet(html, onClose, {push, after}) — push keeps the previous sheet so "Back" returns to it. */
+function openSheet(html, onClose, opts = {}) {
+  if (!opts.push) SHEETS.length = 0;
+  SHEETS.push({ html, after: opts.after || null });
+  if (!opts.push) sheetOnClose = onClose || null;
+  showSheet();
+}
+function showSheet() {
+  const top = SHEETS[SHEETS.length - 1]; if (!top) return;
+  const back = SHEETS.length > 1 ? `<button class="btn sm ghost sheet-back" type="button" data-action="sheet-back">${ICON.left} Back</button>` : "";
+  $("#sheet-root").innerHTML = `<div class="scrim" data-action="scrim"><div class="sheet" role="dialog" aria-modal="true" tabindex="-1">${back}${top.html}</div></div>`;
+  const sh = $("#sheet-root .sheet"); sh.focus({ preventScroll: true });
+  document.body.style.overflow = "hidden";
+  if (top.after) { try { top.after(); } catch (e) { console.error(e); } }
+}
+function replaceSheet(html, after) { if (!SHEETS.length) return openSheet(html, null, { after }); SHEETS[SHEETS.length - 1] = { html, after: after || null }; showSheet(); }
+function closeSheet() { SHEETS.length = 0; $("#sheet-root").innerHTML = ""; if (!$("#run-root") || !$("#run-root").innerHTML) document.body.style.overflow = ""; const f = sheetOnClose; sheetOnClose = null; if (f) f(); }
+ACTIONS["sheet-back"] = () => { if (SHEETS.length > 1) { SHEETS.pop(); showSheet(); } else closeSheet(); };
+function sheetHead(title, eyebrow) { return `<div class="sheet-head"><div style="flex:1;min-width:0">${eyebrow ? `<div class="eyebrow">${esc(eyebrow)}</div>` : ""}<h2 class="h2" style="overflow-wrap:anywhere">${esc(title)}</h2></div><button class="icon-btn" type="button" data-action="close-sheet" aria-label="Close">${ICON.x}</button></div>`; }
+ACTIONS.scrim = (el, ev) => { if (ev.target === el) closeSheet(); };
+ACTIONS["close-sheet"] = () => closeSheet();
+ACTIONS["sign-in"] = () => { try { window.backlit.auth.login(); } catch (e) {} };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#sheet-root").innerHTML) closeSheet(); });
+document.addEventListener("click", ev => {
+  const el = ev.target.closest("[data-action]");
+  if (!el || el.disabled) return;
+  const fn = ACTIONS[el.dataset.action]; if (!fn) return;
+  if (el.tagName === "BUTTON" && el.type === "submit") return;
+  if (el.dataset.action !== "scrim" && el.tagName !== "LABEL" && el.tagName !== "A") ev.preventDefault();
+  try { const r = fn(el, ev); if (r && r.catch) r.catch(e => { console.error(e); toast("Something went wrong. Please try again."); }); }
+  catch (e) { console.error(e); toast("Something went wrong. Please try again."); }
+});
+document.addEventListener("input", ev => { const el = ev.target; if (el.dataset && el.dataset.input && INPUTS[el.dataset.input]) INPUTS[el.dataset.input](el); });
+document.addEventListener("change", ev => { const el = ev.target; if (el.dataset && el.dataset.change && CHANGES[el.dataset.change]) { try { CHANGES[el.dataset.change](el); } catch (e) { console.error(e); } } });
+document.addEventListener("submit", ev => { const f = ev.target; ev.preventDefault(); const fn = SUBMITS[f.dataset.submit]; if (fn) { try { fn(f); } catch (e) { console.error(e); toast("Something went wrong. Please try again."); } } });
+function showBanner(msg, signIn) {
+  let el = $("#store-banner");
+  if (!el) { el = document.createElement("div"); el.id = "store-banner"; const main = $("#main"); main.parentNode.insertBefore(el, main); }
+  el.className = "store-banner";
+  el.innerHTML = `<span>${esc(msg)}</span>${signIn ? `<button class="btn sm primary" type="button" data-action="sign-in">Sign in</button>` : ""}`;
+}
+async function bootStore() {
+  const mode = await Store.init();
+  if (mode === "signedout") showBanner("Sign in to save your workouts.", true);
+  else if (mode === "error") showBanner("Your saved data couldn't be loaded, so changes won't be saved right now. Reload the page to try again.");
+  return mode;
+}
+
+/* ---------- sound ---------- */
+const Sound = {
+  ctx: null, enabled: true, voice: false,
+  unlock() {
+    try {
+      // Play through the iPhone's silent switch where Safari supports it.
+      if (navigator.audioSession && navigator.audioSession.type !== "playback") navigator.audioSession.type = "playback";
+    } catch (e) {}
+    try {
+      if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) this.ctx = new AC(); }
+      if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+      if (this.ctx) { const b = this.ctx.createBuffer(1, 1, 22050), s = this.ctx.createBufferSource(); s.buffer = b; s.connect(this.ctx.destination); s.start(0); }
+    } catch (e) { this.ctx = null; }
+  },
+  tone(freq, dur, opts = {}) {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime + (opts.at || 0), o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = opts.type || "square"; o.frequency.setValueAtTime(freq, t);
+      if (opts.to) o.frequency.exponentialRampToValueAtTime(opts.to, t + dur);
+      const vol = opts.vol || 0.22;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + dur + 0.03);
+    } catch (e) {}
+  },
+  say(text, force) {
+    if (!(this.voice || force) || !text || !("speechSynthesis" in window)) return;
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "en-GB"; u.rate = 1.05; speechSynthesis.speak(u); } catch (e) {}
+  },
+};
+/* Named sound styles, each a short pattern. */
+const SOUNDS = {
+  pip:     { label: "Pip",          play: () => Sound.tone(880, 0.12, { type: "square" }) },
+  tick:    { label: "Low tick",     play: () => Sound.tone(520, 0.1, { type: "triangle", vol: 0.3 }) },
+  wood:    { label: "Woodblock",    play: () => Sound.tone(1200, 0.06, { type: "sine", vol: 0.35 }) },
+  go:      { label: "Go horn",      play: () => { Sound.tone(988, 0.16, { type: "sawtooth" }); Sound.tone(1319, 0.42, { type: "sawtooth", at: 0.17 }); } },
+  whistle: { label: "Whistle",      play: () => { Sound.tone(2100, 0.12, { type: "sine", vol: 0.3 }); Sound.tone(2500, 0.4, { type: "sine", vol: 0.3, at: 0.13 }); } },
+  bell:    { label: "Bell",         play: () => { Sound.tone(1568, 0.9, { type: "sine", vol: 0.3 }); Sound.tone(2349, 0.6, { type: "sine", vol: 0.12 }); } },
+  rest:    { label: "Soft drop",    play: () => Sound.tone(660, 0.5, { type: "triangle", to: 330, vol: 0.3 }) },
+  buzzer:  { label: "Buzzer",       play: () => Sound.tone(150, 0.6, { type: "square", vol: 0.25 }) },
+  chime:   { label: "Double chime", play: () => { Sound.tone(784, 0.25, { type: "sine", vol: 0.3 }); Sound.tone(1047, 0.45, { type: "sine", vol: 0.3, at: 0.22 }); } },
+  fanfare: { label: "Fanfare",      play: () => { Sound.tone(1047, 0.15); Sound.tone(1319, 0.15, { at: 0.17 }); Sound.tone(1568, 0.5, { at: 0.34 }); } },
+  none:    { label: "Silent",       play: () => {} },
+};
+function playSound(id) { (SOUNDS[id] || SOUNDS.pip).play(); }
+
+/* ---------- screen wake ---------- */
+const Wake = {
+  lock: null,
+  async on() { try { if (navigator.wakeLock && !this.lock) { this.lock = await navigator.wakeLock.request("screen"); this.lock.addEventListener("release", () => { this.lock = null; }); } } catch (e) { this.lock = null; } },
+  off() { try { if (this.lock) this.lock.release(); } catch (e) {} this.lock = null; },
+};
+
+/* chart tooltips: any element with data-tip inside .chart-host */
+document.addEventListener("pointermove", e => {
+  const t = e.target.closest && e.target.closest("[data-tip]");
+  $$(".chart-tip").forEach(tip => { if (!t || !tip.parentElement.contains(t)) tip.hidden = true; });
+  if (!t) return;
+  const host = t.closest(".chart-host"), tip = host && host.querySelector(".chart-tip"); if (!tip) return;
+  const hb = host.getBoundingClientRect();
+  tip.textContent = t.getAttribute("data-tip"); tip.hidden = false;
+  tip.style.left = clamp(e.clientX - hb.left + 10, 0, Math.max(0, hb.width - tip.offsetWidth)) + "px"; tip.style.top = Math.max(0, e.clientY - hb.top - 36) + "px";
+});
+
+/* ============================================================
+   CAS Trainer — technique animations
+   A side-view (or front-view) stick figure drawn on canvas from
+   joint angles. Angles are degrees measured from straight down,
+   positive rotating towards the direction the figure faces (+x).
+   dir(0) = down, dir(90) = forward, dir(180) = up, dir(270) = back.
+   ============================================================ */
+const SEG = { torso: 30, neck: 3, head: 6, ua: 15, fa: 14, th: 21, sh: 21, foot: 7 };
+const rad = d => d * Math.PI / 180;
+const dirv = d => [Math.sin(rad(d)), -Math.cos(rad(d))];
+const addv = (p, d, L) => [p[0] + d[0] * L, p[1] + d[1] * L];
+
+const STAND = { th: 0, sh: 0, tor: 180, ua: 4, fa: 4, anchor: "ankle", at: [0, 2], foot: 90 };
+const PZ = o => Object.assign({}, STAND, o);
+
+/* Templates: keyframes cycle A -> B -> (C...) -> A. dur = seconds per full cycle. */
+const ANIMS = {
+  squat_bw:   { dur: 3.2, keys: [PZ({ ua: 8, fa: 8 }), PZ({ th: 82, sh: -28, tor: 138, ua: 92, fa: 92 })] },
+  squat_gob:  { dur: 3.4, props: ["db"], keys: [PZ({ ua: 22, fa: 165 }), PZ({ th: 85, sh: -28, tor: 150, ua: 30, fa: 165 })] },
+  squat_bb:   { dur: 3.6, props: ["bbBack"], keys: [PZ({ ua: -40, fa: 160 }), PZ({ th: 85, sh: -30, tor: 135, ua: -30, fa: 150 })] },
+  rdl_db:     { dur: 3.4, props: ["db"], keys: [PZ({ ua: 2, fa: 2 }), PZ({ th: 20, sh: -12, tor: 100, ua: 0, fa: 0 })] },
+  rdl_bb:     { dur: 3.4, props: ["bb"], keys: [PZ({ ua: 2, fa: 2 }), PZ({ th: 20, sh: -12, tor: 100, ua: 0, fa: 0 })] },
+  rdl_sl:     { dur: 3.6, keys: [PZ({ ua: 2, fa: 2, th2: 0, sh2: 0 }), PZ({ th: 8, sh: -6, tor: 95, ua: 0, fa: 0, th2: -82, sh2: -84 })] },
+  deadlift:   { dur: 3.6, props: ["bb"], keys: [PZ({ th: 72, sh: -26, tor: 122, ua: 0, fa: 0 }), PZ({ ua: 2, fa: 2 })] },
+  lunge:      { dur: 3.4, keys: [PZ({ at: [6, 2] }), PZ({ at: [6, 2], th: 85, sh: 0, th2: -22, sh2: -95, tor: 176 })] },
+  lunge_db:   { dur: 3.4, props: ["db"], keys: [PZ({ at: [6, 2] }), PZ({ at: [6, 2], th: 85, sh: 0, th2: -22, sh2: -95, tor: 176 })] },
+  bulgarian:  { dur: 3.6, props: ["db", "benchBack"], keys: [PZ({ at: [10, 2], th: 25, sh: 0, th2: -30, sh2: -75, tor: 178 }), PZ({ at: [10, 2], th: 82, sh: -8, th2: -5, sh2: -88, tor: 172 })] },
+  jump_squat: { dur: 1.6, keys: [PZ({ th: 80, sh: -28, tor: 138, ua: -30, fa: -20 }), PZ({ at: [0, 8], ua: 125, fa: 140, foot: 30 })] },
+  pushup:     { dur: 2.8, keys: [PZ({ anchor: "wrist", at: [24, 2], th: -68, sh: -68, tor: 112, ua: 0, fa: 0, foot: 20 }), PZ({ anchor: "wrist", at: [24, 2], th: -76, sh: -76, tor: 104, ua: -45, fa: 49, foot: 20 })] },
+  pushup_knee:{ dur: 2.8, keys: [PZ({ anchor: "wrist", at: [24, 2], th: -55, sh: -150, tor: 125, ua: 0, fa: 0, foot: 200 }), PZ({ anchor: "wrist", at: [24, 2], th: -68, sh: -150, tor: 112, ua: -45, fa: 49, foot: 200 })] },
+  pushup_inc: { dur: 2.8, props: ["benchFront"], keys: [PZ({ anchor: "wrist", at: [34, 20], th: -40, sh: -40, tor: 140, ua: -10, fa: -10, foot: 40 }), PZ({ anchor: "wrist", at: [34, 20], th: -48, sh: -48, tor: 132, ua: -55, fa: 40, foot: 40 })] },
+  pike:       { dur: 2.8, keys: [PZ({ anchor: "wrist", at: [18, 2], th: -30, sh: -30, tor: 35, ua: 30, fa: 30, foot: 60 }), PZ({ anchor: "wrist", at: [18, 2], th: -32, sh: -32, tor: 25, ua: -25, fa: 70, foot: 60 })] },
+  plank:      { dur: 3.0, keys: [PZ({ anchor: "wrist", at: [24, 2], th: -80, sh: -80, tor: 100, ua: 0, fa: 90, foot: 15 }), PZ({ anchor: "wrist", at: [24, 2], th: -80, sh: -80, tor: 101, ua: 0, fa: 90, foot: 15 })] },
+  mountain:   { dur: 1.1, keys: [PZ({ anchor: "wrist", at: [24, 2], th: 25, sh: -60, th2: -68, sh2: -68, tor: 112, ua: 0, fa: 0, foot: 20 }), PZ({ anchor: "wrist", at: [24, 2], th: -68, sh: -68, th2: 25, sh2: -60, tor: 112, ua: 0, fa: 0, foot: 20 })] },
+  bench_db:   { dur: 3.0, props: ["db", "bench"], keys: [PZ({ anchor: "hip", at: [-4, 25], tor: 90, th: -75, sh: -10, ua: 180, fa: 180, foot: 80 }), PZ({ anchor: "hip", at: [-4, 25], tor: 90, th: -75, sh: -10, ua: 300, fa: 180, foot: 80 })] },
+  bench_bb:   { dur: 3.0, props: ["bb", "bench"], keys: [PZ({ anchor: "hip", at: [-4, 25], tor: 90, th: -75, sh: -10, ua: 180, fa: 180, foot: 80 }), PZ({ anchor: "hip", at: [-4, 25], tor: 90, th: -75, sh: -10, ua: 300, fa: 180, foot: 80 })] },
+  skull:      { dur: 3.0, props: ["bb", "bench"], keys: [PZ({ anchor: "hip", at: [-4, 25], tor: 90, th: -75, sh: -10, ua: 170, fa: 180, foot: 80 }), PZ({ anchor: "hip", at: [-4, 25], tor: 90, th: -75, sh: -10, ua: 165, fa: 72, foot: 80 })] },
+  ohp_db:     { dur: 3.0, props: ["db"], keys: [PZ({ ua: 25, fa: 170 }), PZ({ ua: 178, fa: 180 })] },
+  ohp_bb:     { dur: 3.0, props: ["bb"], keys: [PZ({ ua: 25, fa: 170 }), PZ({ ua: 178, fa: 180 })] },
+  row_db:     { dur: 2.8, props: ["db"], keys: [PZ({ th: 25, sh: -12, tor: 110, ua: 0, fa: 0 }), PZ({ th: 25, sh: -12, tor: 110, ua: -75, fa: 5 })] },
+  row_bb:     { dur: 2.8, props: ["bb"], keys: [PZ({ th: 25, sh: -12, tor: 112, ua: 0, fa: 0 }), PZ({ th: 25, sh: -12, tor: 112, ua: -72, fa: 8 })] },
+  rearfly:    { dur: 2.8, props: ["db"], keys: [PZ({ th: 25, sh: -12, tor: 110, ua: 0, fa: 0 }), PZ({ th: 25, sh: -12, tor: 110, ua: -85, fa: -85 })] },
+  curl_db:    { dur: 2.6, props: ["db"], keys: [PZ({ ua: 2, fa: 2 }), PZ({ ua: 8, fa: 160 })] },
+  curl_bb:    { dur: 2.6, props: ["bb"], keys: [PZ({ ua: 2, fa: 2 }), PZ({ ua: 8, fa: 160 })] },
+  tri_ext:    { dur: 2.8, props: ["db"], keys: [PZ({ ua: 175, fa: 180 }), PZ({ ua: 170, fa: 320 })] },
+  dip:        { dur: 2.8, props: ["benchBehind"], keys: [PZ({ anchor: "wrist", at: [-8, 25], tor: 176, ua: -10, fa: -8, th: 86, sh: 0, foot: 90 }), PZ({ anchor: "wrist", at: [-8, 25], tor: 172, ua: -100, fa: 15, th: 115, sh: 15, foot: 90 })] },
+  pullup:     { dur: 3.0, props: ["bar"], keys: [PZ({ anchor: "wrist", at: [4, 76], tor: 180, ua: 180, fa: 180, th: 6, sh: -6, foot: 60 }), PZ({ anchor: "wrist", at: [4, 76], tor: 176, ua: 20, fa: 175, th: 20, sh: -20, foot: 60 })] },
+  superman:   { dur: 3.0, keys: [PZ({ anchor: "hip", at: [0, 4], tor: 90, ua: 90, fa: 90, th: 270, sh: 270, foot: 0 }), PZ({ anchor: "hip", at: [0, 4], tor: 100, ua: 102, fa: 102, th: 262, sh: 262, foot: 0 })] },
+  crunch:     { dur: 2.6, keys: [PZ({ anchor: "hip", at: [-2, 4], tor: 90, th: 220, sh: -10, ua: 268, fa: 268, foot: 80 }), PZ({ anchor: "hip", at: [-2, 4], tor: 62, th: 220, sh: -10, ua: 245, fa: 245, foot: 80 })] },
+  deadbug:    { dur: 3.0, keys: [PZ({ anchor: "hip", at: [0, 4], tor: 90, th: 180, sh: 270, th2: 180, sh2: 270, ua: 180, fa: 180, ua2: 180, fa2: 180, foot: 180 }), PZ({ anchor: "hip", at: [0, 4], tor: 90, th: 258, sh: 262, th2: 180, sh2: 270, ua: 180, fa: 180, ua2: 98, fa2: 98, foot: 180 })] },
+  legraise:   { dur: 3.0, keys: [PZ({ anchor: "hip", at: [0, 4], tor: 90, th: 262, sh: 262, ua: 268, fa: 268, foot: 170 }), PZ({ anchor: "hip", at: [0, 4], tor: 90, th: 180, sh: 180, ua: 268, fa: 268, foot: 90 })] },
+  bridge:     { dur: 2.8, keys: [PZ({ at: [10, 2], th: 140, sh: -15, tor: 278, ua: 90, fa: 90, foot: 90 }), PZ({ at: [10, 2], th: 100, sh: -15, tor: 299, ua: 90, fa: 90, foot: 90 })] },
+  thrust_bb:  { dur: 2.8, props: ["bbHip", "benchThrust"], keys: [PZ({ at: [10, 2], th: 150, sh: -15, tor: 238, ua: 40, fa: 120, foot: 90 }), PZ({ at: [10, 2], th: 95, sh: -15, tor: 270, ua: 60, fa: 130, foot: 90 })] },
+  thrust_db:  { dur: 2.8, props: ["dbHip", "benchThrust"], keys: [PZ({ at: [10, 2], th: 150, sh: -15, tor: 238, ua: 40, fa: 120, foot: 90 }), PZ({ at: [10, 2], th: 95, sh: -15, tor: 270, ua: 60, fa: 130, foot: 90 })] },
+  calf:       { dur: 2.2, keys: [PZ({}), PZ({ at: [0, 7], foot: 40 })] },
+  calf_db:    { dur: 2.2, props: ["db"], keys: [PZ({}), PZ({ at: [0, 7], foot: 40 })] },
+  walk:       { dur: 1.2, props: ["tread"], keys: [PZ({ anchor: "hip", at: [0, 43], tor: 178, th: 22, sh: 0, th2: -18, sh2: -10, ua: -20, fa: -10, ua2: 20, fa2: 30, foot: 90 }), PZ({ anchor: "hip", at: [0, 43], tor: 178, th: -18, sh: -10, th2: 22, sh2: 0, ua: 20, fa: 30, ua2: -20, fa2: -10, foot: 90 })] },
+  run:        { dur: 0.7, props: ["tread"], keys: [PZ({ anchor: "hip", at: [0, 41], tor: 172, th: 45, sh: 0, th2: -22, sh2: -45, ua: -40, fa: 50, ua2: 40, fa2: 120, foot: 90 }), PZ({ anchor: "hip", at: [0, 41], tor: 172, th: -22, sh: -45, th2: 45, sh2: 0, ua: 40, fa: 120, ua2: -40, fa2: 50, foot: 90 })] },
+  highknees:  { dur: 0.6, keys: [PZ({ anchor: "hip", at: [0, 42], tor: 178, th: 88, sh: 0, th2: -4, sh2: 0, ua: -40, fa: 60, ua2: 40, fa2: 120, foot: 90 }), PZ({ anchor: "hip", at: [0, 42], tor: 178, th: -4, sh: 0, th2: 88, sh2: 0, ua: 40, fa: 120, ua2: -40, fa2: 60, foot: 90 })] },
+  burpee:     { dur: 3.2, posInterp: true, keys: [PZ({ ua: 4, fa: 4 }), PZ({ th: 95, sh: -40, tor: 100, ua: 0, fa: 0 }), PZ({ anchor: "wrist", at: [24, 2], th: -68, sh: -68, tor: 112, ua: 0, fa: 0, foot: 20 }), PZ({ th: 95, sh: -40, tor: 100, ua: 0, fa: 0 }), PZ({ at: [0, 6], ua: 125, fa: 140, foot: 30 })] },
+  jack:       { dur: 1.0, view: "front", keys: [{ arm: 12, elbow: 0, leg: 3, lift: 0 }, { arm: 165, elbow: 0, leg: 18, lift: 3 }] },
+  latraise:   { dur: 2.8, view: "front", props: ["db"], keys: [{ arm: 10, elbow: 8, leg: 4, lift: 0 }, { arm: 86, elbow: 8, leg: 4, lift: 0 }] },
+};
+
+function joints(p) {
+  const hip = [0, 0];
+  const knee = addv(hip, dirv(p.th), SEG.th), ankle = addv(knee, dirv(p.sh), SEG.sh);
+  const th2 = p.th2 ?? p.th, sh2 = p.sh2 ?? p.sh;
+  const knee2 = addv(hip, dirv(th2), SEG.th), ankle2 = addv(knee2, dirv(sh2), SEG.sh);
+  const sh = addv(hip, dirv(p.tor), SEG.torso);
+  const neck = addv(sh, dirv(p.tor), SEG.neck), head = addv(neck, dirv(p.tor), SEG.head);
+  const elbow = addv(sh, dirv(p.ua), SEG.ua), wrist = addv(elbow, dirv(p.fa), SEG.fa);
+  const ua2 = p.ua2 ?? p.ua, fa2 = p.fa2 ?? p.fa;
+  const elbow2 = addv(sh, dirv(ua2), SEG.ua), wrist2 = addv(elbow2, dirv(fa2), SEG.fa);
+  const toe = addv(ankle, dirv(p.foot ?? 90), SEG.foot), toe2 = addv(ankle2, dirv(p.foot ?? 90), SEG.foot);
+  const J = { hip, knee, ankle, knee2, ankle2, sh, neck, head, elbow, wrist, elbow2, wrist2, toe, toe2 };
+  const ref = { ankle, hip, wrist }[p.anchor || "ankle"] || ankle;
+  const dx = p.at[0] - ref[0], dy = p.at[1] - ref[1];
+  for (const k in J) J[k] = [J[k][0] + dx, J[k][1] + dy];
+  return J;
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => 0.5 - 0.5 * Math.cos(Math.PI * t);
+function lerpPose(a, b, t) {
+  const o = {};
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const va = a[k] ?? a[k.replace("2", "")] , vb = b[k] ?? b[k.replace("2", "")];
+    if (k === "anchor") o.anchor = a.anchor;
+    else if (k === "at") o.at = [lerp(a.at[0], b.at[0], t), lerp(a.at[1], b.at[1], t)];
+    else if (typeof va === "number" && typeof vb === "number") o[k] = lerp(va, vb, t);
+  }
+  return o;
+}
+function lerpJ(A, B, t) { const o = {}; for (const k in A) o[k] = [lerp(A[k][0], B[k][0], t), lerp(A[k][1], B[k][1], t)]; return o; }
+
+/* Frame at time fraction f (0..1) of the cycle. Holds briefly at each keyframe. */
+function frameAt(anim, f) {
+  f = ((f % 1) + 1) % 1;
+  const n = anim.keys.length, seg = f * n, i = Math.floor(seg) % n, local = seg - Math.floor(seg);
+  const t = ease(clamp((local - 0.12) / 0.76, 0, 1));
+  const a = anim.keys[i], b = anim.keys[(i + 1) % n];
+  if (anim.view === "front") return { front: lerpPose(a, b, t) };
+  if (anim.posInterp || (a.anchor || "ankle") !== (b.anchor || "ankle")) return { J: lerpJ(joints(a), joints(b), t) };
+  return { J: joints(lerpPose(a, b, t)) };
+}
+
+function cssVar(name, fallback) { const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; }
+
+/* Draw one frame onto a canvas. */
+function drawFrame(cv, anim, f) {
+  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  const ink = cssVar("--ink", "#131A18"), ink3 = cssVar("--ink-3", "#74827C"), line = cssVar("--line", "#D5DDD9"), acc = cssVar("--accent", "#1B8E4E"), surf = cssVar("--surface-2", "#F4F7F5");
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
+  // world: x -50..50, y -4..86  -> fit
+  const sc = Math.min(W / 106, H / 101), ox = W / 2, oy = H - 4 * sc;
+  const X = p => ox + p[0] * sc, Y = p => oy - p[1] * sc;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // floor
+  ctx.strokeStyle = line; ctx.lineWidth = 2 * sc / 3; ctx.beginPath(); ctx.moveTo(X([-50, 0]), Y([0, 0])); ctx.lineTo(X([50, 0]), Y([0, 0])); ctx.stroke();
+  const props = anim.props || [];
+  const rect = (x0, y0, x1, y1, col) => { ctx.fillStyle = col; const r = 2 * sc; const x = X([x0, 0]), y = Y([0, y1]), w = (x1 - x0) * sc, h = (y1 - y0) * sc; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); ctx.fill(); };
+  if (props.includes("bench")) { rect(-14, 19, 40, 22, ink3); rect(-10, 0, -7, 19, line); rect(30, 0, 33, 19, line); }
+  if (props.includes("benchBack")) { rect(-40, 16, -18, 19, ink3); rect(-30, 0, -27, 16, line); }
+  if (props.includes("benchFront")) { rect(26, 16, 48, 19, ink3); rect(36, 0, 39, 16, line); }
+  if (props.includes("benchBehind")) { rect(-30, 22, -6, 25, ink3); rect(-20, 0, -17, 22, line); }
+  if (props.includes("benchThrust")) { rect(-48, 15, -24, 18, ink3); rect(-38, 0, -35, 15, line); }
+  if (props.includes("bar")) { ctx.strokeStyle = ink3; ctx.lineWidth = 2 * sc; ctx.beginPath(); ctx.moveTo(X([-20, 76]), Y([0, 76])); ctx.lineTo(X([30, 76]), Y([0, 76])); ctx.stroke(); ctx.lineWidth = 1.2 * sc; ctx.beginPath(); ctx.moveTo(X([-18, 76]), Y([0, 76])); ctx.lineTo(X([-18, 86]), Y([0, 86])); ctx.moveTo(X([28, 76]), Y([0, 76])); ctx.lineTo(X([28, 86]), Y([0, 86])); ctx.stroke(); }
+  if (props.includes("tread")) { rect(-34, 0, 30, 4, ink3); ctx.strokeStyle = ink3; ctx.lineWidth = 1.6 * sc; ctx.beginPath(); ctx.moveTo(X([28, 3]), Y([0, 3])); ctx.lineTo(X([34, 46]), Y([0, 46])); ctx.lineTo(X([22, 50]), Y([0, 50])); ctx.stroke(); }
+
+  const fr = frameAt(anim, f);
+  if (fr.front) { drawFront(ctx, fr.front, X, Y, sc, ink, acc, props); return; }
+  const J = fr.J;
+  const limb = (pts, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w * sc; ctx.beginPath(); ctx.moveTo(X(pts[0]), Y(pts[0])); for (let i = 1; i < pts.length; i++) ctx.lineTo(X(pts[i]), Y(pts[i])); ctx.stroke(); };
+  // far limbs
+  limb([J.hip, J.knee2, J.ankle2, J.toe2], ink3, 4.2);
+  limb([J.sh, J.elbow2, J.wrist2], ink3, 3.6);
+  // body
+  limb([J.hip, J.sh], ink, 6);
+  limb([J.sh, J.neck], ink, 4);
+  ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(X(J.head), Y(J.head), SEG.head * sc * 0.95, 0, Math.PI * 2); ctx.fill();
+  limb([J.hip, J.knee, J.ankle, J.toe], ink, 4.6);
+  limb([J.sh, J.elbow, J.wrist], ink, 4);
+  // equipment
+  const plate = (p, r) => { ctx.fillStyle = acc; ctx.beginPath(); ctx.arc(X(p), Y(p), r * sc, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = cssVar("--surface", "#fff"); ctx.beginPath(); ctx.arc(X(p), Y(p), r * sc * 0.25, 0, Math.PI * 2); ctx.fill(); };
+  if (props.includes("db")) { plate(J.wrist, 3.6); plate(J.wrist2, 3.6); }
+  if (props.includes("bb")) plate(J.wrist, 8.5);
+  if (props.includes("bbBack")) plate(addv(J.sh, dirv(270), 1), 8.5);
+  if (props.includes("bbHip")) plate([J.hip[0], J.hip[1] + 5], 8.5);
+  if (props.includes("dbHip")) plate([J.hip[0], J.hip[1] + 4], 4.5);
+}
+function drawFront(ctx, p, X, Y, sc, ink, acc, props) {
+  const cx = 0, hipY = 42 + (p.lift || 0), shY = hipY + SEG.torso;
+  const limb = (pts, w) => { ctx.strokeStyle = ink; ctx.lineWidth = w * sc; ctx.beginPath(); ctx.moveTo(X(pts[0]), Y(pts[0])); for (let i = 1; i < pts.length; i++) ctx.lineTo(X(pts[i]), Y(pts[i])); ctx.stroke(); };
+  limb([[cx, hipY], [cx, shY]], 6);
+  ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(X([cx, shY + 9]), Y([0, shY + 9]), SEG.head * sc * 0.95, 0, Math.PI * 2); ctx.fill();
+  limb([[-5, shY], [5, shY]], 5); limb([[-4, hipY], [4, hipY]], 5);
+  for (const s of [-1, 1]) {
+    const a = rad(p.arm), shp = [s * 5, shY];
+    const el = [shp[0] + s * Math.sin(a) * SEG.ua, shp[1] - Math.cos(a) * SEG.ua];
+    const a2 = rad(p.arm + (p.elbow || 0));
+    const wr = [el[0] + s * Math.sin(a2) * SEG.fa, el[1] - Math.cos(a2) * SEG.fa];
+    limb([shp, el, wr], 4);
+    if (props.includes("db")) { ctx.fillStyle = acc; ctx.beginPath(); ctx.arc(X(wr), Y(wr), 3.6 * sc, 0, Math.PI * 2); ctx.fill(); }
+    const l = rad(p.leg), hp = [s * 4, hipY];
+    const kn = [hp[0] + s * Math.sin(l) * SEG.th, hp[1] - Math.cos(l) * SEG.th];
+    const an = [kn[0] + s * Math.sin(l) * SEG.sh, kn[1] - Math.cos(l) * SEG.sh];
+    limb([hp, kn, an, [an[0] + s * 4, an[1]]], 4.6);
+  }
+}
+
+/* Live player: attach to a canvas, loops until stopped. */
+const AnimPlayer = {
+  list: new Set(),
+  attach(cv, animId, opts = {}) {
+    const anim = ANIMS[animId]; if (!anim || !cv) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const w = cv.clientWidth || 320, h = cv.clientHeight || 280;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    if (opts.still != null) { drawFrame(cv, anim, opts.still); return; }
+    const item = { cv, anim, t0: performance.now() };
+    this.list.add(item); this.loop();
+  },
+  clear() { this.list.clear(); },
+  loop() {
+    if (this.raf) return;
+    const step = now => {
+      this.raf = 0;
+      let alive = 0;
+      for (const it of this.list) {
+        if (!it.cv.isConnected) { this.list.delete(it); continue; }
+        alive++;
+        const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const f = reduce ? 0.5 / it.anim.keys.length : (((now - it.t0) / 1000) / it.anim.dur) % 1;
+        drawFrame(it.cv, it.anim, f);
+      }
+      if (alive) this.raf = requestAnimationFrame(step);
+    };
+    this.raf = requestAnimationFrame(step);
+  },
+};
+
+/* ============================================================
+   CAS Trainer — Treadmill: Bluetooth FTMS link to a Horizon
+   7.4 AT (or any FTMS treadmill), virtual scenic routes and
+   interval workouts with incline/speed prompts, live scenery,
+   recording, history and CSV export.
+   READ-ONLY: the app never sends commands to the treadmill.
+   You change speed and incline on the console when prompted.
+   Web Bluetooth isn't in Safari on iPhone, so on iPhone the app
+   is opened in the Bluefy browser for the treadmill link.
+   ============================================================ */
+ICON.run = I('<circle cx="15" cy="4" r="2"/><path d="M10 21l2.5-5 3 2.5V22"/><path d="M6 12.5l3-3.5 4.5 1 2.5 3.5h3"/><path d="M12.5 16 10.5 10"/>');
+ICON.bt = I('<path d="m7 7 10 10-5 4V3l5 4L7 17"/>');
+ICON.down = I('<path d="M12 4v12M6 11l6 6 6-6M5 21h14"/>');
+
+/* ---------- settings ---------- */
+function tcfg() { return Object.assign({ unit: "kmh", voice: true, autoPause: true }, Store.get("treadcfg", {})); }
+const KMH_MPH = 0.621371;
+const spU = () => tcfg().unit === "mph" ? "mph" : "km/h";
+const spD = kmh => tcfg().unit === "mph" ? kmh * KMH_MPH : kmh;
+const dU = () => tcfg().unit === "mph" ? "mi" : "km";
+const dD = m => tcfg().unit === "mph" ? m / 1609.344 : m / 1000;
+function paceText(kmh) { if (!(kmh > 0.5)) return "–"; const secs = 3600 / spD(kmh); const m = Math.floor(secs / 60), s = Math.round(secs % 60); return `${m}:${String(s === 60 ? 0 : s).padStart(2, "0")}`; }
+const hms = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`; };
+
+/* ---------- FTMS Treadmill Data (0x2ACD) decoder ---------- */
+const FTMS_SVC = 0x1826, TREAD_DATA = 0x2acd;
+function parseTreadmill(dv) {
+  const o = {}; if (!dv || dv.byteLength < 2) return o;
+  const f = dv.getUint16(0, true); let i = 2;
+  const has = n => i + n <= dv.byteLength;
+  const u8 = () => { const v = dv.getUint8(i); i += 1; return v; }, u16 = () => { const v = dv.getUint16(i, true); i += 2; return v; }, s16 = () => { const v = dv.getInt16(i, true); i += 2; return v; };
+  if (!(f & 0x0001) && has(2)) o.speed = u16() / 100;                       // km/h (bit 0 = "more data": speed present when 0)
+  if (f & 0x0002 && has(2)) o.avgSpeed = u16() / 100;
+  if (f & 0x0004 && has(3)) { o.dist = dv.getUint16(i, true) + (dv.getUint8(i + 2) << 16); i += 3; }   // metres
+  if (f & 0x0008 && has(4)) { const inc = s16(); s16(); if (inc !== 0x7fff) o.incline = inc / 10; }    // % (+ ramp angle)
+  if (f & 0x0010 && has(4)) { o.elevUp = u16() / 10; o.elevDown = u16() / 10; }
+  if (f & 0x0020 && has(1)) u8();                                           // instantaneous pace
+  if (f & 0x0040 && has(1)) u8();                                           // average pace
+  if (f & 0x0080 && has(5)) { const k = u16(); u16(); u8(); if (k !== 0xffff) o.kcal = k; }
+  if (f & 0x0100 && has(1)) { const h = u8(); if (h > 0) o.hr = h; }
+  if (f & 0x0200 && has(1)) u8();                                           // METs
+  if (f & 0x0400 && has(2)) o.elapsed = u16();
+  if (f & 0x0800 && has(2)) o.remaining = u16();
+  if (f & 0x1000 && has(4)) { s16(); o.power = s16(); }
+  return o;
+}
+
+/* ---------- connection (Bluetooth or demo) ---------- */
+const TM = { state: "off", dev: null, ch: null, name: "", data: {}, at: 0, subs: new Set(), demo: null, demoIv: null, wantOn: false, err: "" };
+const hasBT = () => !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+function tmEmit() { TM.subs.forEach(fn => { try { fn(TM.data); } catch (e) { console.error(e); } }); }
+function tmOnValue(e) { Object.assign(TM.data, parseTreadmill(e.target.value)); TM.data.t = Date.now(); TM.at = TM.data.t; tmEmit(); }
+async function tmConnect(all) {
+  if (!hasBT()) { openSheet(bluefyHelpHTML()); return; }
+  TM.err = ""; TM.state = "connecting"; tmRefresh();
+  try {
+    const dev = await navigator.bluetooth.requestDevice(all ? { acceptAllDevices: true, optionalServices: [FTMS_SVC] } : { filters: [{ services: [FTMS_SVC] }], optionalServices: [FTMS_SVC] });
+    TM.dev = dev; TM.name = dev.name || "Treadmill"; TM.wantOn = true;
+    dev.addEventListener("gattserverdisconnected", tmLost);
+    await tmAttach();
+    toast(`Connected to ${TM.name}`);
+  } catch (e) {
+    TM.state = TM.dev && TM.ch ? "on" : "off";
+    if (!/cancel|chooser|User/i.test(e.message || "")) TM.err = e.message || String(e);
+  }
+  tmRefresh();
+}
+async function tmAttach() {
+  const gatt = await TM.dev.gatt.connect();
+  const svc = await gatt.getPrimaryService(FTMS_SVC);
+  const ch = await svc.getCharacteristic(TREAD_DATA);
+  ch.addEventListener("characteristicvaluechanged", tmOnValue);
+  await ch.startNotifications();
+  TM.ch = ch; TM.state = "on"; TM.data = {};
+}
+async function tmLost() {
+  TM.ch = null; if (!TM.wantOn) { TM.state = "off"; tmRefresh(); return; }
+  TM.state = "reconnecting"; tmRefresh();
+  for (let n = 0; n < 6 && TM.wantOn; n++) {
+    await new Promise(r => setTimeout(r, 1500 + n * 1500));
+    try { await tmAttach(); toast("Treadmill reconnected"); tmRefresh(); return; } catch (e) {}
+  }
+  TM.state = "off"; TM.err = "Lost the treadmill. Tap Connect to try again."; tmRefresh();
+}
+function tmDisconnect() { TM.wantOn = false; stopDemo(); try { if (TM.dev && TM.dev.gatt.connected) TM.dev.gatt.disconnect(); } catch (e) {} TM.state = "off"; TM.ch = null; tmRefresh(); }
+function startDemo() {
+  tmDisconnect(); TM.state = "demo"; TM.name = "Demo treadmill"; TM.demo = { speed: 0, incline: 0, dist: 0, follow: true }; TM.data = {};
+  TM.demoIv = setInterval(() => {
+    const d = TM.demo, s = RS.on ? RS : null;
+    if (d.follow && s && s.target) { if (s.target.v) d.speed += clamp(s.target.v - d.speed, -1, 1); if (Number.isFinite(s.target.g)) d.incline += clamp(s.target.g - d.incline, -1, 1); }
+    d.dist += d.speed / 3.6;
+    Object.assign(TM.data, { speed: Math.round(d.speed * 100) / 100, incline: Math.round(d.incline * 10) / 10, dist: Math.round(d.dist), hr: d.speed > 0 ? Math.round(78 + d.speed * 7 + d.incline * 2.5) : undefined, t: Date.now() });
+    TM.at = Date.now(); tmEmit();
+  }, 1000);
+  tmRefresh();
+}
+function stopDemo() { if (TM.demoIv) clearInterval(TM.demoIv); TM.demoIv = null; if (TM.state === "demo") TM.state = "off"; }
+function tmRefresh() { if (APP.tab === "tread" && !SHEETS.length && !RS.on) render(); if (RS.on) runHUD(); }
+ACTIONS["tm-connect"] = () => tmConnect(false);
+ACTIONS["tm-connect-all"] = () => tmConnect(true);
+ACTIONS["tm-disconnect"] = () => tmDisconnect();
+ACTIONS["tm-demo"] = () => { closeSheet(); startDemo(); };
+ACTIONS["tm-bluefy"] = () => openSheet(bluefyHelpHTML());
+
+/* ---------- routes and workouts ---------- */
+// dist routes: segs [km, gradient %]; time workouts: segs [seconds, km/h, incline %, label]
+const ROUTES = [
+  { id: "lomond", name: "Loch Lomond Shore", theme: "loch", mode: "dist", blurb: "Gentle lochside path with views over the water to the hills. Ideal for walks and easy runs.", segs: [[1, 0], [0.8, 1], [0.7, 2], [1, 0], [0.5, 3], [1, 1]], marks: [[0.5, "First view across the loch"], [2.5, "Wooded bay"], [4.2, "Short climb to the viewpoint"]] },
+  { id: "arthur", name: "Arthur's Seat Climb", theme: "mountain", mode: "dist", blurb: "A short, steep city hill: steady climb to the summit, then an easy descent (incline 0%).", segs: [[0.6, 1], [0.5, 4], [0.6, 7], [0.4, 10], [0.3, 5], [0.8, -5]], marks: [[1.1, "Past the loch at the foot of the hill"], [2.1, "Final steep section"], [2.4, "Summit"]] },
+  { id: "glencoe", name: "Glen Coe Valley", theme: "glen", mode: "dist", blurb: "Rolling valley road between big mountains. Good for steady runs with gentle hills.", segs: [[1, 1], [1, 3], [1, 1], [1, 5], [1, 2], [1, 4], [1, 0], [1, 2]], marks: [[2, "The Three Sisters on your left"], [4, "Waterfall"], [6.5, "Loch Achtriochtan"]] },
+  { id: "nevis", name: "Ben Nevis Lower Path", theme: "mountain", mode: "dist", blurb: "A hiking climb at a walking pace. Steep and steady: great for fat burning without running.", segs: [[0.5, 4], [0.8, 8], [0.8, 10], [0.7, 12], [0.6, 9], [0.6, 12]], marks: [[1.3, "Halfway lochan in view"], [3.5, "Zig-zags"]] },
+  { id: "clyde", name: "Clyde Riverside Run", theme: "city", mode: "dist", blurb: "Flat city run along the river. Perfect for tempo pace and personal bests.", segs: [[1, 0], [1, 1], [1, 0], [1, 1], [1, 0]], marks: [[1, "Squinty Bridge"], [2.5, "Science Centre"], [4, "Riverside Museum"]] },
+  { id: "standrews", name: "St Andrews Beach", theme: "coast", mode: "dist", blurb: "Flat sands by the sea. Easy recovery walk or jog.", segs: [[1.5, 0], [1.5, 1]], marks: [[1, "Pier in the distance"], [2.5, "Dunes"]] },
+  { id: "cairngorm", name: "Cairngorms Forest Trail", theme: "forest", mode: "dist", blurb: "Pine forest trail with long, steady climbs.", segs: [[1, 2], [1, 4], [1, 3], [1, 5], [1, 2], [1, 3]], marks: [[1.5, "Red squirrel spotted"], [3.5, "Forest clearing"], [5.5, "Loch Morlich"]] },
+  { id: "free", name: "Open Road (free run)", theme: "glen", mode: "free", blurb: "No targets: set any speed and incline you like. The scenery rolls with you.", segs: [] },
+];
+const WORKOUTS = [
+  { id: "w12330", name: "12-3-30 Hill Walk", theme: "mountain", mode: "time", blurb: "A popular fat-burning walk: 12% incline at about 4.8 km/h (3 mph) for 30 minutes.", segs: [[300, 4.5, 2, "Warm-up walk"], [1800, 4.8, 12, "Steady hill walk"], [300, 4, 0, "Cool-down"]] },
+  { id: "walkrun", name: "Walk–Run Intervals", theme: "loch", mode: "time", blurb: "Beginner intervals: 1 minute running, 2 minutes walking, 8 times.", segs: [[300, 5.5, 1, "Warm-up walk"], ...Array.from({ length: 8 }, () => [[60, 8.5, 1, "Run"], [120, 5.5, 1, "Walk"]]).flat(), [300, 5, 0, "Cool-down"]] },
+  { id: "hillint", name: "Hill Intervals", theme: "mountain", mode: "time", blurb: "6 × 2 minutes up a steep hill with 2 minutes easy between.", segs: [[300, 5.5, 1, "Warm-up"], ...Array.from({ length: 6 }, () => [[120, 6, 8, "Hill"], [120, 5, 1, "Easy"]]).flat(), [300, 4.5, 0, "Cool-down"]] },
+  { id: "tempo", name: "Tempo Run", theme: "city", mode: "time", blurb: "20 minutes comfortably hard, with warm-up and cool-down.", segs: [[300, 7, 1, "Warm-up jog"], [1200, 9.5, 1, "Tempo"], [300, 6, 0, "Cool-down"]] },
+  { id: "fatburn", name: "Rolling Fat-Burn Walk", theme: "forest", mode: "time", blurb: "40 minutes brisk walking over rolling hills.", segs: [[300, 5, 1, "Warm-up"], ...Array.from({ length: 5 }, () => [[180, 5.8, 3, "Rolling"], [180, 5.6, 6, "Hill"]]).flat(), [300, 5, 0, "Cool-down"]] },
+  { id: "speed", name: "Speed Intervals", theme: "coast", mode: "time", blurb: "Runners: 8 × 1 minute fast, 1 minute recovery.", segs: [[420, 7.5, 1, "Warm-up"], ...Array.from({ length: 8 }, () => [[60, 12, 1, "Fast"], [60, 7, 1, "Recover"]]).flat(), [300, 6, 0, "Cool-down"]] },
+];
+const ALLR = () => ROUTES.concat(WORKOUTS);
+const routeById = id => ALLR().find(r => r.id === id);
+function routeLen(r) { return r.mode === "dist" ? r.segs.reduce((a, s) => a + s[0], 0) : r.mode === "time" ? r.segs.reduce((a, s) => a + s[0], 0) : 0; }
+function routeClimb(r) { return r.mode === "dist" ? r.segs.reduce((a, s) => a + Math.max(0, s[1]) * s[0] * 10, 0) : r.segs.reduce((a, s) => a + s[0] * s[1] / 3.6 * s[2] / 100, 0); }
+function segAt(r, pos) { let acc = 0; for (let i = 0; i < r.segs.length; i++) { const L = r.segs[i][0]; if (pos < acc + L) return { i, start: acc, end: acc + L }; acc += L; } return null; }
+function targetOf(r, i) { const s = r.segs[i]; if (!s) return null; return r.mode === "dist" ? { g: clamp(s[1], 0, 15), real: s[1], label: s[1] < 0 ? "Downhill" : s[1] >= 8 ? "Steep climb" : s[1] >= 3 ? "Climb" : "Flat" } : { v: s[1], g: s[2], label: s[3] }; }
+function profileSVG(r, pos, h = 70) {
+  const W = 320, H = h; if (r.mode === "free") return "";
+  const L = routeLen(r); let x = 0, y = 0; const pts = [[0, 0]];
+  if (r.mode === "dist") r.segs.forEach(s => { x += s[0]; y += s[0] * 1000 * s[1] / 100; pts.push([x, y]); });
+  const lo = Math.min(...pts.map(p => p[1])), hi = Math.max(...pts.map(p => p[1]), lo + 120);
+  const X = v => v / L * W, Y = v => H - 6 - (v - lo) / (hi - lo) * (H - 14);
+  if (r.mode === "dist") {
+    const d = pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("");
+    const px = pos != null ? X(clamp(pos, 0, L)) : null; let py = null;
+    if (pos != null) { for (let i = 1; i < pts.length; i++) if (pos <= pts[i][0] || i === pts.length - 1) { const a = pts[i - 1], b = pts[i], t = clamp((pos - a[0]) / (b[0] - a[0] || 1), 0, 1); py = Y(a[1] + (b[1] - a[1]) * t); break; } }
+    return `<svg class="prof" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}L${W},${H}L0,${H}Z" fill="var(--accent-soft)"/><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke"/>${px != null ? `<path d="M0,0" /><rect x="0" y="0" width="${px}" height="${H}" fill="var(--accent)" opacity=".10"/><circle cx="${px}" cy="${py}" r="5" fill="var(--work)" stroke="#fff" stroke-width="2"/>` : ""}</svg>`;
+  }
+  // time workout: bars of incline, height = speed
+  const maxV = Math.max(...r.segs.map(s => s[1])); let t = 0;
+  return `<svg class="prof" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${r.segs.map(s => { const x0 = X(t), w = Math.max(1, X(s[0]) - 0.6); t += s[0]; const hh = (s[1] / maxV) * (H - 10); return `<rect x="${x0}" y="${H - hh}" width="${w}" height="${hh}" fill="var(--accent)" opacity="${0.35 + s[2] / 20}"/>`; }).join("")}${pos != null ? `<rect x="${X(clamp(pos, 0, L))}" y="0" width="2.5" height="${H}" fill="var(--work)"/>` : ""}</svg>`;
+}
+
+/* ---------- live session ---------- */
+const RS = { on: false };
+function kcalPerMin(kmh, inc, kg) { const v = kmh * 1000 / 60, g = Math.max(0, inc) / 100; const vo2 = kmh < 6.4 ? 0.1 * v + 1.8 * v * g + 3.5 : 0.2 * v + 0.9 * v * g + 3.5; return vo2 * (kg || 75) / 1000 * 5; }
+function startRun(route) {
+  if (TM.state !== "on" && TM.state !== "demo") { openSheet(`${sheetHead("Connect first")}<p class="sub">Connect your treadmill, or try demo mode to see how it works.</p><div class="stack" style="margin-top:12px">${hasBT() ? `<button class="btn primary lg" type="button" data-action="tm-connect">${ICON.bt} Connect treadmill</button>` : `<button class="btn primary lg" type="button" data-action="tm-bluefy">${ICON.bt} How to connect on iPhone</button>`}<button class="btn" type="button" data-action="tm-demo-go" data-id="${route.id}">Try in demo mode</button></div>`); return; }
+  closeSheet(); Sound.unlock(); Wake.on();
+  Object.assign(RS, { on: true, route, id: uid(), t0: Date.now(), active: 0, dist: 0, elev: 0, kcal: 0, hrs: [], maxV: 0, samples: [], last: null, tmDist0: null, tmDistOff: 0, lastTmDist: null, paused: false, manualPause: false, zeroSince: 0, seg: -1, warned: -1, marks: new Set(), visDist: 0, done: false, target: null, frameT: performance.now(), msg: "", msgT: 0 });
+  RS.unsub = d => runData(d); TM.subs.add(RS.unsub);
+  $("#run-root").innerHTML = `<div class="player tread-run" id="tread-run" role="dialog" aria-label="Treadmill session"></div>`; document.body.style.overflow = "hidden";
+  runHUD(true); runPrompt(route.mode === "free" ? "Free run. Start the belt when you're ready." : `${route.name}. Start the belt on the console when you're ready.`, true);
+  RS.raf = requestAnimationFrame(runFrame);
+}
+ACTIONS["tm-demo-go"] = el => { startDemo(); startRun(routeById(el.dataset.id)); };
+function runData(d) {
+  if (!RS.on) return;
+  const now = d.t || Date.now(), dt = RS.last ? clamp((now - RS.last) / 1000, 0, 5) : 0; RS.last = now;
+  const v = Number.isFinite(d.speed) ? d.speed : 0, inc = Number.isFinite(d.incline) ? d.incline : 0;
+  // auto pause when the belt stops
+  if (v < 0.3) { RS.zeroSince = RS.zeroSince || now; } else RS.zeroSince = 0;
+  const autoPaused = tcfg().autoPause && RS.zeroSince && now - RS.zeroSince > 2500;
+  RS.paused = RS.manualPause || autoPaused;
+  // distance: prefer the treadmill's own total, fall back to speed × time
+  let dd = v / 3.6 * dt;
+  if (Number.isFinite(d.dist)) {
+    if (RS.lastTmDist != null && d.dist < RS.lastTmDist - 5) RS.tmDistOff += RS.lastTmDist; // console was reset
+    const tot = d.dist + RS.tmDistOff;
+    if (RS.tmDist0 == null) RS.tmDist0 = tot;
+    const prev = RS.lastTmTot != null ? RS.lastTmTot : tot; dd = clamp(tot - prev, 0, 60); RS.lastTmTot = tot; RS.lastTmDist = d.dist;
+  }
+  if (RS.manualPause) dd = 0;
+  if (!RS.paused) RS.active += dt;
+  RS.dist += dd; RS.elev += dd * Math.max(0, inc) / 100; RS.kcal += kcalPerMin(v, inc, typeof latestKg === "function" ? latestKg() : 75) * (RS.paused ? 0 : dt) / 60;
+  RS.maxV = Math.max(RS.maxV, v); if (d.hr) RS.hrs.push(d.hr);
+  RS.v = v; RS.inc = inc; RS.hr = d.hr;
+  if (!RS.samples.length || now - RS.samples[RS.samples.length - 1][5] >= 5000) RS.samples.push([Math.round(RS.active), Math.round(v * 100) / 100, Math.round(inc * 10) / 10, Math.round(RS.dist), d.hr || 0, now]);
+  runRoute(); runHUD();
+}
+function runPos() { const r = RS.route; return r.mode === "dist" ? RS.dist / 1000 : r.mode === "time" ? RS.active : 0; }
+function runPrompt(text, chime) { RS.msg = text; RS.msgT = Date.now(); if (chime) playSound("chime"); if (tcfg().voice) Sound.say(text, true); }
+function runRoute() {
+  const r = RS.route; if (r.mode === "free" || RS.done) { RS.target = null; return; }
+  const pos = runPos(), L = routeLen(r), sg = segAt(r, pos);
+  if (!sg) { RS.done = true; RS.target = null; runPrompt(`${r.mode === "dist" ? "Route" : "Workout"} complete! Great work. Slow the belt to cool down, then tap Finish.`, true); playSound("fanfare"); return; }
+  const tg = targetOf(r, sg.i); RS.target = tg;
+  const spd = x => `${fmt(spD(x), 1)} ${spU()}`;
+  if (sg.i !== RS.seg) {
+    RS.seg = sg.i;
+    const t = tg, msg = r.mode === "dist" ? (t.real < 0 ? `Downhill now. Set the incline to 0%${t.real <= -4 ? " and lift your pace a little" : ""}.` : `${t.label}: set the incline to ${fmt(t.g, 0)}%.`) : `${t.label}: ${spd(t.v)}, incline ${fmt(t.g, 0)}%.`;
+    if (sg.i > 0 || r.mode === "time") runPrompt(msg, true); else RS.msg = msg;
+  }
+  // early warning before a change
+  const next = targetOf(r, sg.i + 1), left = sg.end - pos, warnAt = r.mode === "dist" ? 0.15 : 10;
+  if (next && left <= warnAt && RS.warned !== sg.i && (next.g !== tg.g || next.v !== tg.v)) {
+    RS.warned = sg.i;
+    runPrompt(r.mode === "dist" ? `In ${Math.round(left * 1000 / 10) * 10} metres: incline ${fmt(next.g, 0)}%.` : `In ${Math.round(left)} seconds: ${next.label.toLowerCase()}, ${spd(next.v)}, incline ${fmt(next.g, 0)}%.`, true);
+  }
+  (r.marks || []).forEach(([km, txt], i) => { if (r.mode === "dist" && pos >= km && !RS.marks.has(i)) { RS.marks.add(i); runPrompt(txt, false); } });
+}
+function runHUD(full) {
+  const root = $("#tread-run"); if (!root || !RS.on) return;
+  const r = RS.route, pos = runPos(), L = routeLen(r), tg = RS.target, inc = RS.inc || 0, v = RS.v || 0;
+  const incOff = tg && Number.isFinite(tg.g) && Math.abs(inc - tg.g) > 0.6, spOff = tg && tg.v && Math.abs(v - tg.v) > 0.4;
+  const conn = TM.state === "on" ? `<span class="pill good">${ICON.bt} ${esc(TM.name)}</span>` : TM.state === "demo" ? `<span class="pill accent">Demo</span>` : TM.state === "reconnecting" ? `<span class="pill warn">Reconnecting…</span>` : `<span class="pill bad">Not connected</span>`;
+  const avgHr = RS.hrs.length ? Math.round(RS.hrs.reduce((a, b) => a + b, 0) / RS.hrs.length) : null;
+  const pct = r.mode === "free" ? 0 : clamp(pos / L * 100, 0, 100);
+  const left = r.mode === "dist" ? `${fmt(dD(Math.max(0, L * 1000 - RS.dist)), 2)} ${dU()} to go` : r.mode === "time" ? `${hms(Math.max(0, L - RS.active))} to go` : "Free run";
+  const html = {
+    top: `<button class="pl-x" type="button" data-action="tr-finish">${ICON.x}<span>Finish</span></button><div class="pl-title">${esc(r.name)}</div>${conn}`,
+    stats: `<div class="tr-big"><div><b>${hms(RS.active)}</b><span>Time</span></div><div><b>${fmt(dD(RS.dist), 2)}</b><span>${dU()}</span></div></div>
+      <div class="tr-grid">
+        <div class="${spOff ? "off" : ""}"><b>${fmt(spD(v), 1)}</b><span>${spU()}${tg && tg.v ? ` · target ${fmt(spD(tg.v), 1)}` : ""}</span></div>
+        <div class="${incOff ? "off" : ""}"><b>${fmt(inc, 1)}%</b><span>Incline${tg && Number.isFinite(tg.g) ? ` · target ${fmt(tg.g, 0)}%` : ""}</span></div>
+        <div><b>${paceText(v)}</b><span>Pace /${dU()}</span></div>
+        <div><b>${fmt(RS.elev, 0)} m</b><span>Climbed</span></div>
+        <div><b>${fmt(RS.kcal, 0)}</b><span>kcal (est.)</span></div>
+        <div><b>${RS.hr || avgHr || "–"}</b><span>Heart rate</span></div>
+      </div>`,
+    route: r.mode === "free" ? "" : `<div class="tr-prof">${profileSVG(r, pos, 56)}<div class="row between small muted"><span>${Math.round(pct)}%</span><span>${left}</span></div></div>`,
+    msg: `${RS.paused ? `<div class="note warn">${RS.manualPause ? "Recording paused" : "Belt stopped: recording paused"}</div>` : ""}${incOff ? `<div class="note warn"><b>${inc < tg.g ? "Raise" : "Lower"} the incline to ${fmt(tg.g, 0)}%</b> on the console.</div>` : ""}${spOff && !incOff ? `<div class="note warn"><b>${v < tg.v ? "Speed up" : "Slow down"} to ${fmt(spD(tg.v), 1)} ${spU()}</b> on the console.</div>` : ""}${RS.msg ? `<div class="tr-msg">${esc(RS.msg)}</div>` : ""}`,
+    demo: TM.state === "demo" ? `<div class="tr-demo"><span class="small muted">Demo treadmill</span><button class="btn sm" type="button" data-action="dm" data-k="speed" data-d="-0.5">− speed</button><button class="btn sm" type="button" data-action="dm" data-k="speed" data-d="0.5">+ speed</button><button class="btn sm" type="button" data-action="dm" data-k="incline" data-d="-1">− incline</button><button class="btn sm" type="button" data-action="dm" data-k="incline" data-d="1">+ incline</button><label class="small"><input type="checkbox" data-change="dm-follow" ${TM.demo && TM.demo.follow ? "checked" : ""}> auto-follow targets</label></div>` : "",
+    nav: `<button class="btn lg" type="button" data-action="tr-pause">${RS.manualPause ? `${ICON.play} Resume` : `${ICON.pause} Pause`}</button><span></span><button class="btn primary lg" type="button" data-action="tr-finish">${ICON.check} Finish</button>`,
+  };
+  if (full || !root.querySelector(".pl-top")) {
+    root.innerHTML = `<div class="pl-top" id="tr-top"></div><div class="pl-prog"><i id="tr-bar"></i></div>
+      <div class="tr-scene"><canvas id="tr-cv" aria-label="Virtual scenery moving at your treadmill speed"></canvas></div>
+      <div class="pl-body tr-body"><div id="tr-msg"></div><div id="tr-stats"></div><div id="tr-route"></div><div id="tr-demo"></div>
+      <p class="small muted">Change speed and incline on the treadmill console. This app only reads the treadmill. Keep the safety key clipped on.</p></div>
+      <div class="pl-nav" id="tr-nav"></div>`;
+  }
+  const set = (id, h) => { const el = $("#" + id); if (el && el._h !== h) { el.innerHTML = h; el._h = h; } };
+  set("tr-top", html.top); set("tr-stats", html.stats); set("tr-route", html.route); set("tr-msg", html.msg); set("tr-demo", html.demo); set("tr-nav", html.nav);
+  const bar = $("#tr-bar"); if (bar) bar.style.width = pct + "%";
+}
+ACTIONS.dm = el => { if (!TM.demo) return; const k = el.dataset.k; TM.demo[k] = clamp(TM.demo[k] + Number(el.dataset.d), 0, k === "speed" ? 20 : 15); TM.demo.follow = false; runHUD(); };
+CHANGES["dm-follow"] = el => { if (TM.demo) TM.demo.follow = el.checked; };
+ACTIONS["tr-pause"] = () => { RS.manualPause = !RS.manualPause; runHUD(); };
+
+/* ---------- scenery renderer (pseudo-3D, drawn in code) ---------- */
+const THEMES = {
+  loch:     { sky: ["#8EC5E8", "#E4F1F8"], far: "#7E93A8", mid: "#557A57", ground: "#6E9A4E", path: "#B9A88A", water: "#4D84A8", side: "tree" },
+  glen:     { sky: ["#9DB7CF", "#E9EEF1"], far: "#6C7A89", mid: "#6F7F4E", ground: "#8A9A55", path: "#7D7A74", water: null, side: "post" },
+  mountain: { sky: ["#7FB0DA", "#DDEBF5"], far: "#8D9AAA", mid: "#6B6F59", ground: "#8B8C64", path: "#A89A82", water: null, side: "rock", snow: true },
+  city:     { sky: ["#F2B88A", "#F8E6D2"], far: "#9F8C9C", mid: "#6F6A78", ground: "#7B8C6A", path: "#8A8D93", water: "#5E7F98", side: "lamp", city: true },
+  coast:    { sky: ["#86C6EA", "#EAF6FB"], far: "#9DB4C2", mid: "#C9B98F", ground: "#E3D3A6", path: "#D8C69A", water: "#3B8BB8", side: "post" },
+  forest:   { sky: ["#A9CBE0", "#EDF3F2"], far: "#5F7867", mid: "#3E6346", ground: "#55784A", path: "#9C8466", water: null, side: "pine" },
+};
+function ridge(x, seed, amp) { return Math.sin(x * 0.011 + seed) * amp * 0.5 + Math.sin(x * 0.023 + seed * 2.1) * amp * 0.3 + Math.sin(x * 0.051 + seed * 3.7) * amp * 0.2; }
+function runFrame(ts) {
+  if (!RS.on) return;
+  const dt = Math.min(0.1, (ts - RS.frameT) / 1000); RS.frameT = ts;
+  const v = RS.paused ? 0 : (RS.v || 0); RS.visDist += v / 3.6 * dt;
+  const cv = $("#tr-cv"); if (cv) drawScene(cv, RS.visDist, RS.target ? RS.target.real ?? RS.target.g : RS.inc || 0, v, ts / 1000);
+  RS.raf = requestAnimationFrame(runFrame);
+}
+function drawScene(cv, dist, grad, v, time) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.clientWidth || 360, H = cv.clientHeight || 220;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const th = THEMES[RS.route.theme] || THEMES.glen;
+  const hz = H * (0.46 + clamp(grad, -6, 15) * 0.006);            // horizon rises on climbs
+  // sky
+  let g = ctx.createLinearGradient(0, 0, 0, hz); g.addColorStop(0, th.sky[0]); g.addColorStop(1, th.sky[1]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, hz + 2);
+  // clouds
+  ctx.fillStyle = "rgba(255,255,255,.75)";
+  for (let i = 0; i < 4; i++) { const x = ((i * 157 - dist * 0.6 - time * 4) % (W + 160) + W + 160) % (W + 160) - 80, y = 18 + i * 13 % 40; ctx.beginPath(); ctx.ellipse(x, y, 34, 9, 0, 0, Math.PI * 2); ctx.ellipse(x + 22, y - 5, 22, 8, 0, 0, Math.PI * 2); ctx.fill(); }
+  // far mountains
+  const layer = (col, base, amp, par, seed, snow) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, hz + 1); for (let x = 0; x <= W; x += 6) ctx.lineTo(x, base - Math.abs(ridge(x + dist * par, seed, amp)) - amp * 0.35); ctx.lineTo(W, hz + 1); ctx.closePath(); ctx.fill();
+    if (snow) { ctx.save(); ctx.clip(); ctx.fillStyle = "rgba(255,255,255,.8)"; ctx.fillRect(0, 0, W, base - amp * 0.82); ctx.restore(); } };
+  if (th.city) { ctx.fillStyle = th.far; for (let i = -1; i < W / 26 + 2; i++) { const off = (dist * 0.25) % 26, x = i * 26 - off, k = Math.abs(Math.sin((i + Math.floor(dist * 0.25 / 26)) * 12.9898) * 43758.5453 % 1), h = 18 + k * 46; ctx.fillRect(x, hz - h, 22, h); } }
+  else layer(th.far, hz, H * 0.30, 0.05, 1.3, th.snow);
+  layer(th.mid, hz + 2, H * 0.12, 0.18, 4.1, false);
+  // water band
+  if (th.water) { ctx.fillStyle = th.water; ctx.fillRect(0, hz - 1, W, H * 0.07); ctx.strokeStyle = "rgba(255,255,255,.45)"; ctx.lineWidth = 1; for (let i = 0; i < 6; i++) { const y = hz + 3 + i * 3, x = ((i * 53 - dist * 0.8) % W + W) % W; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 18, y); ctx.stroke(); } }
+  const gy = hz + (th.water ? H * 0.07 : 0);
+  ctx.fillStyle = th.ground; ctx.fillRect(0, gy - 1, W, H - gy + 1);
+  // path in perspective
+  const cx = W / 2, nearW = W * 0.62, farW = 6;
+  ctx.fillStyle = th.path; ctx.beginPath(); ctx.moveTo(cx - farW, gy); ctx.lineTo(cx + farW, gy); ctx.lineTo(cx + nearW / 2, H); ctx.lineTo(cx - nearW / 2, H); ctx.closePath(); ctx.fill();
+  // ground stripes + centre dashes (z from 2 m to 80 m)
+  const proj = z => gy + (H - gy) * (2 / z);                         // simple 1/z: z=2m -> bottom
+  for (let k = 0; k < 40; k++) { const z = 2 + ((k * 4 - dist % 4) + 160) % 160; if (z < 2) continue; const y1 = proj(z), y2 = proj(z + 2); if (y1 - y2 < 0.4) continue; const w1 = farW + (nearW / 2 - farW) * (y1 - gy) / (H - gy); ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.fillRect(cx - Math.max(1, w1 * 0.03), y2, Math.max(2, w1 * 0.06), y1 - y2); }
+  // side objects every 9 m
+  const objs = []; for (let k = 0; k < 18; k++) { const zz = 9 * k - dist % 9 + 3; if (zz < 2.2) continue; objs.push(zz); }
+  objs.sort((a, b) => b - a).forEach((z, j) => {
+    const y = proj(z), s = clamp(2 / z, 0.02, 1), wHalf = farW + (nearW / 2 - farW) * (y - gy) / (H - gy), id = Math.floor((dist + z) / 9);
+    [-1, 1].forEach(side => { if ((id + (side > 0 ? 1 : 0)) % 3 === 2 && th.side !== "lamp") return; const x = cx + side * (wHalf + 14 * s * 4 + 8 * s); drawSide(ctx, th.side, x, y, s * (H / 220), side); });
+  });
+  // runner shadow hint + speed lines
+  if (v > 0.5) { ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1.5; for (let i = 0; i < Math.min(8, v); i++) { const x = (i * 97 + time * 300) % W, y = H - 6 - (i * 13) % 30; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 6 + v, y); ctx.stroke(); } }
+  // runner figure (side view, from the technique animations)
+  const anim = v >= 7 ? ANIMS.run : ANIMS.walk; if (anim) { const fr = frameAt(anim, v > 0.3 ? (time * v / (v >= 7 ? 4.2 : 3)) % 1 : 0.25); const J = fr.J; if (J) { const sc = H / 260, ox = W * 0.16, oy = H - 8;
+    const X = p => ox + p[0] * sc, Y = p => oy - p[1] * sc, lim = (pts, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w * sc; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(X(pts[0]), Y(pts[0])); pts.slice(1).forEach(p => ctx.lineTo(X(p), Y(p))); ctx.stroke(); };
+    ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(ox, oy + 2, 26 * sc, 4 * sc, 0, 0, Math.PI * 2); ctx.fill();
+    lim([J.hip, J.knee2, J.ankle2, J.toe2], "#3A4752", 5); lim([J.sh, J.elbow2, J.wrist2], "#3A4752", 4.4);
+    lim([J.hip, J.sh], "#167A49", 8); lim([J.sh, J.neck], "#1B242B", 4.5); ctx.fillStyle = "#1B242B"; ctx.beginPath(); ctx.arc(X(J.head), Y(J.head), SEG.head * sc, 0, Math.PI * 2); ctx.fill();
+    lim([J.hip, J.knee, J.ankle, J.toe], "#1B242B", 5.6); lim([J.sh, J.elbow, J.wrist], "#1B242B", 4.8); } }
+  // grade badge
+  ctx.fillStyle = "rgba(0,0,0,.45)"; const label = `${grad > 0.4 ? "▲" : grad < -0.4 ? "▼" : "▬"} ${fmt(grad, 0)}%`; ctx.font = "700 13px system-ui,sans-serif"; const tw = ctx.measureText(label).width; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(W - tw - 22, 10, tw + 14, 24, 12); else ctx.rect(W - tw - 22, 10, tw + 14, 24); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(label, W - tw - 15, 27);
+}
+function drawSide(ctx, kind, x, y, s, side) {
+  if (s < 0.03) return;
+  if (kind === "tree" || kind === "pine") {
+    const h = (kind === "pine" ? 120 : 90) * s, w = (kind === "pine" ? 26 : 40) * s;
+    ctx.fillStyle = "#5B4632"; ctx.fillRect(x - 3 * s, y - h * 0.3, 6 * s, h * 0.3);
+    ctx.fillStyle = kind === "pine" ? "#2E5537" : "#3E7346"; ctx.beginPath();
+    if (kind === "pine") { ctx.moveTo(x, y - h); ctx.lineTo(x + w, y - h * 0.22); ctx.lineTo(x - w, y - h * 0.22); } else ctx.ellipse(x, y - h * 0.62, w, h * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (kind === "rock") { ctx.fillStyle = "#7C7A70"; ctx.beginPath(); ctx.ellipse(x, y - 8 * s, 22 * s, 12 * s, 0, Math.PI, 0); ctx.fill(); }
+  else if (kind === "lamp") { ctx.strokeStyle = "#3D434A"; ctx.lineWidth = Math.max(1, 3 * s); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 110 * s); ctx.lineTo(x - side * 18 * s, y - 110 * s); ctx.stroke(); ctx.fillStyle = "#FFE7A3"; ctx.beginPath(); ctx.arc(x - side * 18 * s, y - 106 * s, 4 * s, 0, Math.PI * 2); ctx.fill(); }
+  else { ctx.fillStyle = "#6B5844"; ctx.fillRect(x - 2.5 * s, y - 34 * s, 5 * s, 34 * s); ctx.fillStyle = "#E8E1D3"; ctx.fillRect(x - 2.5 * s, y - 34 * s, 5 * s, 5 * s); }
+}
+
+/* ---------- finish, save, history, export ---------- */
+ACTIONS["tr-finish"] = el => {
+  if (RS.dist < 50 && RS.active < 60 && el.dataset.sure !== "1") { openSheet(`${sheetHead("End session?")}<p class="sub">Less than a minute recorded. Discard it, or save anyway?</p><div class="row" style="margin-top:14px"><button class="btn danger" type="button" data-action="tr-discard">Discard</button><span class="spacer"></span><button class="btn primary" type="button" data-action="tr-finish" data-sure="1">Save</button></div>`); return; }
+  closeSheet(); finishRun(true);
+};
+ACTIONS["tr-discard"] = () => { closeSheet(); finishRun(false); };
+function finishRun(save) {
+  RS.on = false; cancelAnimationFrame(RS.raf); TM.subs.delete(RS.unsub); Wake.off();
+  let rec = null;
+  if (save) {
+    const end = Date.now(), r = RS.route, hrs = RS.hrs;
+    rec = { id: RS.id, t0: RS.t0, t: end, date: dkey(), title: `Treadmill: ${r.name}`, key: "tread", mins: Math.max(1, Math.round(RS.active / 60)), items: [], rpe: null, feel: "",
+      tread: { route: r.id, dist: Math.round(RS.dist), secs: Math.round(RS.active), avgKmh: RS.active ? Math.round(RS.dist / RS.active * 3.6 * 100) / 100 : 0, maxKmh: RS.maxV, elev: Math.round(RS.elev), kcal: Math.round(RS.kcal), avgHr: hrs.length ? Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length) : null, maxHr: hrs.length ? Math.max(...hrs) : null, complete: RS.done, demo: TM.state === "demo" } };
+    if (rec.tread.avgHr) rec.hr = { avg: rec.tread.avgHr, max: rec.tread.maxHr, src: "treadmill" };
+    const h = historyList(); h.push(rec); Store.set("history", h.slice(-400));
+    const s = RS.samples; const step = Math.max(1, Math.ceil(s.length / 360)); Store.set("tr-" + rec.id, s.filter((_, i) => i % step === 0).map(x => x.slice(0, 5)));
+    playSound("fanfare");
+  }
+  $("#run-root").innerHTML = ""; document.body.style.overflow = "";
+  APP.tab = "tread"; render();
+  if (rec) openTreadSummary(rec.id, true);
+}
+function treadHistory() { return historyList().filter(x => x.tread).sort((a, b) => b.t0 - a.t0); }
+function samplesChart(s) {
+  if (!s || s.length < 2) return `<p class="small muted">Not enough samples for a chart.</p>`;
+  const W = 640, H = 200, L = 40, R = 40, T = 12, B = 26, tmax = s[s.length - 1][0] || 1, vmax = Math.max(1, ...s.map(x => spD(x[1]))) * 1.1, imax = Math.max(5, ...s.map(x => x[2])) * 1.1;
+  const X = t => L + t / tmax * (W - L - R), Yv = v => T + (1 - v / vmax) * (H - T - B), Yi = v => T + (1 - v / imax) * (H - T - B);
+  const pv = s.map((x, i) => `${i ? "L" : "M"}${X(x[0]).toFixed(1)},${Yv(spD(x[1])).toFixed(1)}`).join(""), pi = s.map((x, i) => `${i ? "L" : "M"}${X(x[0]).toFixed(1)},${Yi(x[2]).toFixed(1)}`).join("");
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Speed and incline during the session"><path d="${pi}L${X(tmax)},${H - B}L${L},${H - B}Z" fill="var(--warn)" opacity=".18"/><path d="${pi}" fill="none" stroke="var(--warn)" stroke-width="2"/><path d="${pv}" fill="none" stroke="var(--accent)" stroke-width="2.6"/>
+    <text x="${L - 6}" y="${T + 10}" text-anchor="end">${fmt(vmax, 0)}</text><text x="${W - R + 6}" y="${T + 10}">${fmt(imax, 0)}%</text><text x="${L}" y="${H - 6}">0:00</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${hms(tmax)}</text>
+    <g transform="translate(${L + 10},${T + 4})"><rect width="14" height="4" y="4" fill="var(--accent)"/><text x="18" y="10">Speed (${spU()})</text><rect x="130" width="14" height="4" y="4" fill="var(--warn)"/><text x="148" y="10">Incline</text></g></svg>`;
+}
+function openTreadSummary(id, fresh) {
+  const x = historyList().find(h => h.id === id); if (!x) return; const t = x.tread, r = routeById(t.route) || { name: "Treadmill" }, s = Store.get("tr-" + id, []);
+  openSheet(`${sheetHead(fresh ? "Session saved" : r.name, prettyDate(x.date, { weekday: "long", day: "numeric", month: "long" }))}
+    ${fresh ? `<p class="sub">${esc(r.name)}${t.complete ? " · route completed" : ""}${t.demo ? " · demo mode" : ""}</p>` : ""}
+    <div class="kpis" style="margin:10px 0"><div class="kpi"><b>${fmt(dD(t.dist), 2)}</b><span>${dU()}</span></div><div class="kpi"><b>${hms(t.secs)}</b><span>Time</span></div><div class="kpi"><b>${fmt(spD(t.avgKmh), 1)}</b><span>Avg ${spU()}</span></div><div class="kpi"><b>${paceText(t.avgKmh)}</b><span>Pace /${dU()}</span></div><div class="kpi"><b>${t.elev} m</b><span>Climbed</span></div><div class="kpi"><b>${t.kcal}</b><span>kcal (est.)</span></div>${t.avgHr ? `<div class="kpi"><b>${t.avgHr}</b><span>Avg HR (max ${t.maxHr})</span></div>` : ""}</div>
+    <div class="chart-host">${samplesChart(s)}</div>
+    ${fresh ? `<div class="field"><span class="lbl">How hard was it? (1 = very easy, 10 = maximal)</span><div class="rpe">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-action="tr-rpe" data-id="${id}" data-v="${n}" aria-pressed="${x.rpe === n}">${n}</button>`).join("")}</div></div>` : ""}
+    ${typeof treadSummaryExtra === "function" ? treadSummaryExtra(x) : ""}<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-action="tr-csv" data-id="${id}">${ICON.down} Export CSV</button><button class="btn ghost" type="button" data-action="tr-del" data-id="${id}">${ICON.trash} Delete</button><span class="spacer"></span><button class="btn primary" type="button" data-action="close-sheet">Done</button></div>
+    <p class="small muted" style="margin-top:8px">Calories are estimated from your body weight, speed and incline (ACSM equations). Treadmill sessions count towards your weekly sessions and streak.</p>`);
+}
+ACTIONS["tr-open"] = el => openTreadSummary(el.dataset.id);
+ACTIONS["tr-rpe"] = el => { const h = historyList(), x = h.find(r => r.id === el.dataset.id); if (x) { x.rpe = Number(el.dataset.v); Store.set("history", h); } $$('[data-action="tr-rpe"]').forEach(b => b.setAttribute("aria-pressed", b === el)); toast("Effort saved"); };
+ACTIONS["tr-del"] = el => { if (el.dataset.sure !== "1") { el.dataset.sure = "1"; el.textContent = "Tap again to delete"; return; } Store.set("history", historyList().filter(x => x.id !== el.dataset.id)); Store.remove("tr-" + el.dataset.id); closeSheet(); render(); toast("Session deleted"); };
+ACTIONS["tr-csv"] = async el => {
+  const x = historyList().find(h => h.id === el.dataset.id); if (!x) return; const s = Store.get("tr-" + x.id, []);
+  const rows = [["seconds", "speed_kmh", "incline_pct", "distance_m", "heart_rate"], ...s.map(r => r.slice(0, 5))];
+  const csv = rows.map(r => r.join(",")).join("\n"), name = `treadmill-${x.date}-${(x.tread.route || "run")}.csv`;
+  const file = typeof File === "function" ? new File([csv], name, { type: "text/csv" }) : null;
+  try { if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+};
+
+/* ---------- Treadmill tab ---------- */
+const TREAD_URL = "https://stirlingcraig-cyber.github.io/CAS-Treadmill/";
+const TRAINER_URL = "https://devoted-finchwood.backlit.run/";
+const IS_COMPANION = !!window.CAS_COMPANION;
+function bluefyHelpHTML() {
+  const url = IS_COMPANION ? location.origin + location.pathname : TREAD_URL;
+  return `${sheetHead("Connect on iPhone", "One-time setup, about 2 minutes")}
+    <p class="sub">Safari on iPhone can't talk to Bluetooth fitness machines, so treadmill sessions run in <b>CAS Treadmill</b> inside the free <b>Bluefy – Web BLE Browser</b> app. CAS Treadmill needs <b>no sign-in</b>. When you finish, one tap sends the session to CAS Trainer in Safari.</p>
+    <ol class="steps">
+      <li>Install <b>Bluefy – Web BLE Browser</b> from the App Store.</li>
+      <li>Open Bluefy and go to <b>${esc(url)}</b>. Add it to Bluefy's bookmarks or favourites.</li>
+      <li>Allow Bluetooth when Bluefy asks.</li>
+      <li>Switch on the treadmill. Close atZone, Zwift, Peloton or any other app that might already be connected to it.</li>
+      <li>Tap <b>Connect treadmill</b> and pick your Horizon from the list.</li>
+      <li>After a session, tap <b>Send to CAS Trainer</b>. Safari opens CAS Trainer and saves it to your log.</li>
+      <li>Set iPhone Auto-Lock to Never during sessions so the Bluetooth link isn't dropped.</li>
+    </ol>
+    <div class="note">Pairing the treadmill as a speaker in iPhone Settings → Bluetooth is a separate connection and won't send workout data.</div>
+    <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><a class="btn" href="https://apps.apple.com/app/id1492822055" target="_blank" rel="noopener">Bluefy on the App Store</a>${IS_COMPANION ? "" : `<button class="btn" type="button" data-action="tr-copy-url">Copy CAS Treadmill link</button>`}<span class="spacer"></span><button class="btn primary" type="button" data-action="tm-demo">Try demo mode</button></div>`;
+}
+ACTIONS["tr-copy-url"] = async () => { try { await navigator.clipboard.writeText(TREAD_URL); toast("Link copied. Paste it into Bluefy"); } catch (e) { toast(TREAD_URL); } };
+
+/* ---------- hand-off code: CAS Treadmill (Bluefy, no sign-in) → CAS Trainer ---------- */
+function b64urlEncode(str) { const bytes = new TextEncoder().encode(str); let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function b64urlDecode(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; const bin = atob(s); return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))); }
+function treadPayload(id) { const x = historyList().find(h => h.id === id); if (!x) return null; let s = Store.get("tr-" + id, []) || []; const step = Math.max(1, Math.ceil(s.length / 240)); s = s.filter((_, i) => i % step === 0); const r = Object.assign({}, x); delete r.sent; return b64urlEncode(JSON.stringify({ v: 1, r, s })); }
+function treadImport(code) {
+  code = String(code || "").trim().replace(/^.*[?&]tread=/, "").replace(/^CAST1[.:]/, "").replace(/[\s&#].*$/, "");
+  let p; try { p = JSON.parse(b64urlDecode(code)); } catch (e) { return { ok: false, msg: "That isn't a CAS Treadmill code." }; }
+  if (!p || p.v !== 1 || !p.r || !p.r.tread || !p.r.id) return { ok: false, msg: "That isn't a CAS Treadmill code." };
+  const h = historyList(); if (h.some(x => x.id === p.r.id)) return { ok: true, dup: true, id: p.r.id, msg: "Already in your log." };
+  const r = Object.assign({}, p.r, { items: [], imported: true }); h.push(r); h.sort((a, b) => (a.t0 || 0) - (b.t0 || 0)); Store.set("history", h.slice(-400));
+  if (Array.isArray(p.s)) Store.set("tr-" + r.id, p.s.slice(0, 400));
+  return { ok: true, id: r.id, msg: "Treadmill session added to your log." };
+}
+function routeCard(r) {
+  const len = routeLen(r);
+  return `<button class="tr-card" type="button" data-action="tr-route" data-id="${r.id}"><span class="tr-thumb t-${r.theme}">${profileSVG(r, null, 46)}</span><b>${esc(r.name)}</b><span class="small muted">${r.mode === "dist" ? `${fmt(dD(len * 1000), 1)} ${dU()} · climb ${Math.round(routeClimb(r))} m` : r.mode === "time" ? `${Math.round(len / 60)} min · up to ${Math.max(...r.segs.map(s => s[2]))}% incline` : "Any distance"}</span></button>`;
+}
+ACTIONS["tr-route"] = el => {
+  const r = routeById(el.dataset.id), len = routeLen(r);
+  const segRows = r.mode === "dist" ? r.segs.map((s, i) => `<tr><td>${i + 1}</td><td>${fmt(dD(s[0] * 1000), 2)} ${dU()}</td><td>${s[1] < 0 ? `${s[1]}% → set 0%` : s[1] + "%"}</td></tr>`).join("") : r.mode === "time" ? r.segs.map(s => `<tr><td>${esc(s[3])}</td><td>${hms(s[0])}</td><td>${fmt(spD(s[1]), 1)} ${spU()} · ${s[2]}%</td></tr>`).join("") : "";
+  openSheet(`${sheetHead(r.name, r.mode === "time" ? "Interval workout" : "Virtual route")}<p class="sub">${esc(r.blurb)}</p>
+    ${r.mode !== "free" ? `<div class="tr-prof-big t-${r.theme}">${profileSVG(r, null, 90)}</div><div class="kpis" style="margin:10px 0"><div class="kpi"><b>${r.mode === "dist" ? fmt(dD(len * 1000), 1) + " " + dU() : Math.round(len / 60) + " min"}</b><span>${r.mode === "dist" ? "Distance" : "Duration"}</span></div><div class="kpi"><b>${Math.round(routeClimb(r))} m</b><span>Climb</span></div><div class="kpi"><b>${r.segs.length}</b><span>Sections</span></div></div>
+    <details class="tr-det"><summary>Section by section</summary><div class="tbl-wrap"><table class="tbl"><tbody>${segRows}</tbody></table></div></details>` : ""}
+    <div class="note" style="margin-top:10px">You'll get a chime and a spoken prompt before each change. Adjust speed and incline on the console yourself. The app never changes them.</div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" type="button" data-action="close-sheet">Cancel</button><span class="spacer"></span><button class="btn primary lg" type="button" data-action="tr-go" data-id="${r.id}">${ICON.play} Start</button></div>`);
+};
+ACTIONS["tr-go"] = el => startRun(routeById(el.dataset.id));
+ACTIONS["tr-set"] = el => { const c = tcfg(); c[el.dataset.k] = el.dataset.v === "true" ? true : el.dataset.v === "false" ? false : el.dataset.v; Store.set("treadcfg", c); render(); };
+VIEWS.tread = () => {
+  const c = tcfg(), h = treadHistory(), mon = mondayOf(dkey());
+  const weeks = Array.from({ length: 8 }, (_, i) => addDays(mon, (i - 7) * 7));
+  const bars = weeks.map(wk => { const xs = h.filter(x => mondayOf(x.date) === wk), m = xs.reduce((a, x) => a + x.tread.dist, 0); return { v: Math.round(dD(m) * 10) / 10, label: prettyDate(wk, { day: "numeric", month: "numeric" }), tip: `Week of ${prettyDate(wk, { day: "numeric", month: "short" })}: ${fmt(dD(m), 1)} ${dU()}, ${xs.length} session${xs.length === 1 ? "" : "s"}` }; });
+  const st = TM.state, data = TM.data || {};
+  const connCard = st === "on" || st === "demo" || st === "reconnecting"
+    ? `<div class="row between"><div><b>${esc(TM.name)}</b><div class="small muted">${st === "demo" ? "Demo mode: a pretend treadmill so you can try routes" : st === "reconnecting" ? "Reconnecting…" : Number.isFinite(data.speed) ? `Live: ${fmt(spD(data.speed), 1)} ${spU()} · incline ${fmt(data.incline || 0, 1)}%` : "Connected. Waiting for data: start the belt to see it."}</div></div><button class="btn sm" type="button" data-action="tm-disconnect">${st === "demo" ? "Exit demo" : "Disconnect"}</button></div>`
+    : hasBT() ? `<p class="small">Switch on your treadmill, then connect. Close atZone or other fitness apps first: only one app can be connected at a time.</p>${TM.err ? `<div class="note bad" style="margin:8px 0">${esc(TM.err)}</div>` : ""}<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" type="button" data-action="tm-connect" ${st === "connecting" ? "disabled" : ""}>${ICON.bt} ${st === "connecting" ? "Connecting…" : "Connect treadmill"}</button><button class="btn sm ghost" type="button" data-action="tm-connect-all">Treadmill not listed? Show all devices</button><button class="btn sm ghost" type="button" data-action="tm-demo">Demo mode</button></div>`
+    : `<p class="small">${IS_COMPANION ? "This browser can't connect to Bluetooth fitness machines. On iPhone, open this page in the free <b>Bluefy</b> browser." : "Safari on iPhone can't connect to Bluetooth fitness machines. Run treadmill sessions in <b>CAS Treadmill</b> (no sign-in) inside the free <b>Bluefy</b> browser; sessions come back here with one tap."}</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" type="button" data-action="tm-bluefy">${ICON.bt} How to connect on iPhone</button><button class="btn" type="button" data-action="tm-demo">Try demo mode</button></div>`;
+  return `<div class="view-head"><div><div class="eyebrow">Horizon 7.4 AT · Bluetooth FTMS</div><h1 class="h1">Treadmill</h1></div></div>${typeof treadViewExtra === "function" ? treadViewExtra() : ""}
+    <section class="card tr-conn ${st === "on" ? "on" : ""}"><div class="card-head"><h2 class="h3">${ICON.bt} Treadmill link</h2><span class="pill ${st === "on" ? "good" : st === "demo" ? "accent" : ""}">${{ on: "Connected", demo: "Demo", connecting: "Connecting", reconnecting: "Reconnecting", off: "Not connected" }[st]}</span></div>${connCard}</section>
+    <h2 class="h2 tr-sec">Virtual routes</h2><p class="small muted">Scenic walks and runs. The scenery moves at your belt speed and you're prompted to change the incline for each hill.</p>
+    <div class="tr-cards">${ROUTES.map(routeCard).join("")}</div>
+    <h2 class="h2 tr-sec">Interval workouts</h2><p class="small muted">Timed sessions with speed and incline targets for each block.</p>
+    <div class="tr-cards">${WORKOUTS.map(routeCard).join("")}</div>
+    <div class="grid g2" style="margin-top:18px;align-items:start">
+      <section class="card"><div class="card-head"><h2 class="h3">Weekly distance</h2><span class="small muted">${dU()}</span></div>${barChart(bars, { label: "Treadmill distance per week", empty: "Your weekly treadmill distance appears here." })}</section>
+      <section class="card"><div class="card-head"><h2 class="h3">Recent sessions</h2></div>${h.length ? `<div class="stack" style="gap:6px">${h.slice(0, 12).map(x => `<button class="tr-hist" type="button" data-action="tr-open" data-id="${x.id}"><span><b>${esc((routeById(x.tread.route) || { name: "Treadmill" }).name)}</b><span class="small muted">${esc(prettyDate(x.date, { weekday: "short", day: "numeric", month: "short" }))}${x.tread.demo ? " · demo" : ""}</span></span><span class="mono small">${fmt(dD(x.tread.dist), 2)} ${dU()} · ${hms(x.tread.secs)}</span></button>`).join("")}</div>` : `<p class="empty">No treadmill sessions yet.</p>`}</section>
+    </div>
+    <section class="card" style="margin-top:16px"><div class="card-head"><h2 class="h3">Settings</h2></div>
+      <div class="stack" style="gap:10px">
+        <div><span class="lbl">Speed units</span><div class="seg" role="group">${[["kmh", "km/h"], ["mph", "mph"]].map(([v, l]) => `<button type="button" data-action="tr-set" data-k="unit" data-v="${v}" aria-pressed="${c.unit === v}">${l}</button>`).join("")}</div></div>
+        <div><span class="lbl">Spoken prompts</span><div class="seg" role="group">${[["true", "On"], ["false", "Off"]].map(([v, l]) => `<button type="button" data-action="tr-set" data-k="voice" data-v="${v}" aria-pressed="${String(c.voice) === v}">${l}</button>`).join("")}</div></div>
+        <div><span class="lbl">Pause recording when the belt stops</span><div class="seg" role="group">${[["true", "On"], ["false", "Off"]].map(([v, l]) => `<button type="button" data-action="tr-set" data-k="autoPause" data-v="${v}" aria-pressed="${String(c.autoPause) === v}">${l}</button>`).join("")}</div></div>
+      </div></section>
+    <details class="card tr-safety" style="margin-top:16px"><summary><b>Safety</b></summary><ul class="small">
+      <li>The app only reads the treadmill; it never starts, stops or changes speed or incline. You stay in control on the console.</li>
+      <li>Always clip the safety key to your clothing. Don't look down at the phone for long while running: use the spoken prompts.</li>
+      <li>Mount the phone on the console shelf, not in your hand.</li>
+      <li>Start every session with 3–5 minutes of walking. Stop if you feel dizzy, faint or have chest pain.</li>
+      <li>Steep walking (10%+) is hard on calves and Achilles tendons: build up over a few weeks.</li></ul></details>`;
+};
+AFTER.tread = () => {};
+
+/* ============================================================
+   CAS Treadmill — companion page for Bluefy (no sign-in).
+   Records treadmill sessions on this phone and sends each one
+   to CAS Trainer in Safari.
+   ============================================================ */
+const historyList = () => { const h = Store.get("history", []); return Array.isArray(h) ? h : []; };
+const latestKg = () => { const k = Number(Store.get("kg", 75)); return k > 25 && k < 300 ? k : 75; };
+function niceTicks(lo, hi, n = 4) {
+  const span = hi - lo || 1, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(x => x * mag).find(x => x >= raw) || raw;
+  const start = Math.floor(lo / step) * step, out = [];
+  for (let i = 0; i < 20; i++) { const v = start + i * step; out.push(Math.round(v * 1000) / 1000); if (v >= hi - step * 0.001) break; }
+  return { ticks: out, lo: start, hi: out[out.length - 1] };
+}
+function barChart(bars, opts = {}) {
+  if (!bars.some(b => b.v > 0)) return `<p class="empty">${opts.empty || "No data yet."}</p>`;
+  const W = 640, H = 210, L = 50, R = 12, T = 14, B = 30, n = bars.length, bw = (W - L - R) / n;
+  const nt = niceTicks(0, Math.max(...bars.map(b => b.v)) * 1.1 || 1, 4), y = v => T + (1 - v / nt.hi) * (H - T - B);
+  return `<div class="chart-host" style="position:relative"><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.label || "Chart")}">
+    ${nt.ticks.map(t => `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 8}" y="${y(t) + 4}" text-anchor="end">${fmt(t)}</text>`).join("")}
+    ${bars.map((b, i) => { const x0 = L + i * bw + 4, w = bw - 8, hgt = Math.max(0, y(0) - y(b.v)); return `${b.v > 0 ? `<path d="M${x0},${y(0)} v${-Math.max(hgt - 4, 0)} q0,-4 4,-4 h${Math.max(w - 8, 0)} q4,0 4,4 v${Math.max(hgt - 4, 0)} z" fill="var(--accent)" opacity="${i === n - 1 ? 1 : 0.75}"/>` : ""}<text x="${x0 + w / 2}" y="${H - 9}" text-anchor="middle">${esc(b.label)}</text><rect x="${L + i * bw}" y="${T}" width="${bw}" height="${H - T - B}" fill="transparent" data-tip="${esc(b.tip)}"/>`; }).join("")}
+  </svg><div class="chart-tip" hidden></div></div>`;
+}
+function sendHref(id) { const code = treadPayload(id); return code ? "x-safari-https://" + TRAINER_URL.replace(/^https:\/\//, "") + "?tread=" + code : "#"; }
+function treadSummaryExtra(x) {
+  return `<div class="note ${x.sent ? "good" : ""}" style="margin-top:10px">${x.sent ? "Sent to CAS Trainer. You can send it again if it didn't arrive." : "<b>Not in CAS Trainer yet.</b> Send it so it counts towards your log and streak."}</div>
+    <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><a class="btn primary" href="${sendHref(x.id)}" data-action="tr-sent" data-id="${x.id}">Send to CAS Trainer (opens Safari)</a><button class="btn" type="button" data-action="tr-copycode" data-id="${x.id}">Copy code</button></div>
+    <p class="small muted" style="margin-top:4px">If Safari doesn't open, tap Copy code, open CAS Trainer in Safari, go to Treadmill → Import and paste.</p>`;
+}
+ACTIONS["tr-sent"] = el => { const h = historyList(), x = h.find(r => r.id === el.dataset.id); if (x) { x.sent = Date.now(); Store.set("history", h); } };
+ACTIONS["tr-copycode"] = async el => { const code = "CAST1." + treadPayload(el.dataset.id); try { await navigator.clipboard.writeText(code); toast("Code copied. Paste it in CAS Trainer → Treadmill → Import"); } catch (e) { openSheet(`${sheetHead("Copy this code")}<textarea class="input" rows="6" readonly style="font-family:var(--f-mono);font-size:11px">${esc(code)}</textarea>`); } ACTIONS["tr-sent"](el); };
+function treadViewExtra() {
+  const unsent = historyList().filter(x => x.tread && !x.sent);
+  return `<p class="small muted" style="margin:-6px 0 12px">Works without signing in. Sessions are kept on this phone until you send them to <a href="${TRAINER_URL}">CAS Trainer</a>.</p>
+    ${unsent.length ? `<div class="note warn" style="margin-bottom:12px"><b>${unsent.length} session${unsent.length > 1 ? "s" : ""} not sent to CAS Trainer yet.</b> Open ${unsent.length > 1 ? "each one" : "it"} under Recent sessions and tap Send.</div>` : ""}
+    <section class="card" style="margin-bottom:16px"><div class="row between" style="gap:10px;flex-wrap:wrap"><div><b>Your weight</b><div class="small muted">Used to estimate calories</div></div><div class="input-unit" style="max-width:130px"><input class="input" type="number" inputmode="decimal" value="${latestKg()}" data-change="cw-kg" aria-label="Your weight in kg"><span>kg</span></div></div></section>`;
+}
+CHANGES["cw-kg"] = el => { const v = num(el.value); if (v > 25 && v < 300) { Store.set("kg", v); toast("Weight saved"); } };
+APP.tabs = [["tread", "Treadmill", "run"]];
+APP.tab = "tread";
+(async function boot() {
+  await Store.init();
+  render();
+})();
+
+</script>
+</body></html>
