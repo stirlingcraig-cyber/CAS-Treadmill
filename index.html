@@ -536,6 +536,25 @@ button.linkish{color:var(--accent);font-weight:600}
 .pb-fields .input{min-height:38px;padding:6px 8px;text-align:center}
 .pb-row .icon-btn.sm{width:32px;height:32px}
 .pb-row .icon-btn svg{width:15px;height:15px}
+.tr-thumb{position:relative;padding:0;height:86px}
+.tr-thumbcv{width:100%;height:100%;display:block;border-radius:9px}
+.tr-thumb-prof{position:absolute;left:0;right:0;bottom:0;height:24px;background:linear-gradient(transparent,rgba(0,0,0,.35));border-radius:0 0 9px 9px;padding:0 4px}
+.tr-thumb-prof .prof path:first-child{fill:rgba(255,255,255,.25)}.tr-thumb-prof .prof path{stroke:#fff}.tr-thumb-prof .prof rect{fill:#fff}
+.tr-hero{height:170px;border-radius:12px;overflow:hidden;margin-top:6px}
+.tr-hero canvas{width:100%;height:100%;border-radius:12px}
+.tr-block{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
+.tr-block.done{display:flex;flex-direction:column;align-items:flex-start;border-color:var(--good)}
+.tr-ring{width:72px;height:72px;color:var(--ink)}
+.tr-block-txt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.tr-block-txt b{font-size:19px;line-height:1.15}
+.tr-block-txt>span:not(.eyebrow){font-size:14px;color:var(--ink-2)}
+.tr-next{font-size:12.5px!important;color:var(--ink-3)!important;margin-top:3px}
+.tr-next b{font-size:12.5px}
+.tr-block-btns{display:flex;flex-direction:column;gap:6px}
+.tr-ghost{display:flex;justify-content:space-between;align-items:center;gap:8px;border-radius:var(--radius-sm);padding:8px 12px;margin-top:8px;background:#E3ECFC;color:#1D3F8F}
+.tr-ghost.ahead{background:var(--good-soft);color:var(--good)}
+.tr-ghost.behind{background:#E3ECFC;color:#1D3F8F}
+.tr-scene{height:clamp(200px,36vh,320px)}
 
 #tabs{display:none}#btn-settings{display:none}
 </style>
@@ -1155,7 +1174,8 @@ function kcalPerMin(kmh, inc, kg) { const v = kmh * 1000 / 60, g = Math.max(0, i
 function startRun(route, pace) {
   if (TM.state !== "on" && TM.state !== "demo") { openSheet(`${sheetHead("Connect first")}<p class="sub">Connect your treadmill, or try demo mode to see how it works.</p><div class="stack" style="margin-top:12px">${hasBT() ? `<button class="btn primary lg" type="button" data-action="tm-connect">${ICON.bt} Connect treadmill</button>` : `<button class="btn primary lg" type="button" data-action="tm-bluefy">${ICON.bt} How to connect on iPhone</button>`}<button class="btn" type="button" data-action="tm-demo-go" data-id="${route.id}">Try in demo mode</button></div>`); return; }
   closeSheet(); Sound.unlock(); Wake.on();
-  Object.assign(RS, { on: true, route, pace: pace || 0, ctlSeg: -1, id: uid(), t0: Date.now(), active: 0, dist: 0, elev: 0, kcal: 0, hrs: [], maxV: 0, samples: [], last: null, tmDist0: null, tmDistOff: 0, lastTmDist: null, paused: false, manualPause: false, zeroSince: 0, seg: -1, warned: -1, marks: new Set(), visDist: 0, done: false, target: null, frameT: performance.now(), msg: "", msgT: 0 });
+  Object.assign(RS, { on: true, route, ownRoute: false, pace: pace || 0, ctlSeg: -1, id: uid(), t0: Date.now(), active: 0, dist: 0, elev: 0, kcal: 0, hrs: [], maxV: 0, samples: [], last: null, tmDist0: null, tmDistOff: 0, lastTmDist: null, paused: false, manualPause: false, zeroSince: 0, seg: -1, warned: -1, marks: new Set(), visDist: 0, done: false, target: null, frameT: performance.now(), msg: "", msgT: 0 });
+  RS.splits = null; if (typeof plusStart === "function") plusStart();
   RS.unsub = d => runData(d); TM.subs.add(RS.unsub);
   $("#run-root").innerHTML = `<div class="player tread-run" id="tread-run" role="dialog" aria-label="Treadmill session"></div>`; document.body.style.overflow = "hidden";
   runHUD(true); runPrompt(route.mode === "free" ? "Free run. Start the belt when you're ready." : `${route.name}. Start the belt on the console when you're ready.`, true);
@@ -1184,9 +1204,10 @@ function runData(d) {
   RS.maxV = Math.max(RS.maxV, v); if (d.hr) RS.hrs.push(d.hr);
   RS.v = v; RS.inc = inc; RS.hr = d.hr;
   if (!RS.samples.length || now - RS.samples[RS.samples.length - 1][5] >= 5000) RS.samples.push([Math.round(RS.active), Math.round(v * 100) / 100, Math.round(inc * 10) / 10, Math.round(RS.dist), d.hr || 0, now]);
+  if (typeof plusTick === "function") plusTick();
   runRoute(); runHUD();
 }
-function runPos() { const r = RS.route; return r.mode === "dist" ? RS.dist / 1000 : r.mode === "time" ? RS.active : 0; }
+function runPos() { const r = RS.route; return r.mode === "dist" ? RS.dist / 1000 : r.mode === "time" ? Math.max(0, RS.active + (RS.posOff || 0)) : 0; }
 function runPrompt(text, chime) { RS.msg = text; RS.msgT = Date.now(); if (chime) playSound("chime"); if (tcfg().voice) Sound.say(text, true); }
 function runRoute() {
   const r = RS.route; if (r.mode === "free" || RS.done) { RS.target = null; return; }
@@ -1235,12 +1256,13 @@ function runHUD(full) {
   if (full || !root.querySelector(".pl-top")) {
     root.innerHTML = `<div class="pl-top" id="tr-top"></div><div class="pl-prog"><i id="tr-bar"></i></div>
       <div class="tr-scene"><canvas id="tr-cv" aria-label="Virtual scenery moving at your treadmill speed"></canvas></div>
-      <div class="pl-body tr-body"><div id="tr-msg"></div><div id="tr-demo"></div><div id="tr-stats"></div><div id="tr-route"></div>
+      <div class="pl-body tr-body"><div id="tr-msg"></div><div id="tr-block"></div><div id="tr-demo"></div><div id="tr-stats"></div><div id="tr-route"></div>
       <p class="small muted" id="tr-foot"></p></div>
       <div class="pl-nav" id="tr-nav"></div>`;
   }
   const set = (id, h) => { const el = $("#" + id); if (el && el._h !== h) { el.innerHTML = h; el._h = h; } };
   set("tr-foot", ctlActive() ? "Phone control is on. The safety key and the console STOP always override the phone." : "Change speed and incline on the treadmill console. Keep the safety key clipped on.");
+  set("tr-block", typeof plusBlockHTML === "function" ? plusBlockHTML() : "");
   set("tr-top", html.top); set("tr-stats", html.stats); set("tr-route", html.route); set("tr-msg", html.msg); set("tr-demo", html.demo); set("tr-nav", html.nav);
   const bar = $("#tr-bar"); if (bar) bar.style.width = pct + "%";
 }
@@ -1334,7 +1356,7 @@ function finishRun(save) {
   if (save) {
     const end = Date.now(), r = RS.route, hrs = RS.hrs;
     rec = { id: RS.id, t0: RS.t0, t: end, date: dkey(), title: `Treadmill: ${r.name}`, key: "tread", mins: Math.max(1, Math.round(RS.active / 60)), items: [], rpe: null, feel: "",
-      tread: { route: r.id, dist: Math.round(RS.dist), secs: Math.round(RS.active), avgKmh: RS.active ? Math.round(RS.dist / RS.active * 3.6 * 100) / 100 : 0, maxKmh: RS.maxV, elev: Math.round(RS.elev), kcal: Math.round(RS.kcal), avgHr: hrs.length ? Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length) : null, maxHr: hrs.length ? Math.max(...hrs) : null, complete: RS.done, demo: TM.state === "demo" } };
+      tread: { route: r.id, dist: Math.round(RS.dist), secs: Math.round(RS.active), avgKmh: RS.active ? Math.round(RS.dist / RS.active * 3.6 * 100) / 100 : 0, maxKmh: RS.maxV, elev: Math.round(RS.elev), kcal: Math.round(RS.kcal), avgHr: hrs.length ? Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length) : null, maxHr: hrs.length ? Math.max(...hrs) : null, complete: RS.done, demo: TM.state === "demo", splits: RS.splits || [] } };
     if (rec.tread.avgHr) rec.hr = { avg: rec.tread.avgHr, max: rec.tread.maxHr, src: "treadmill" };
     const h = historyList(); h.push(rec); Store.set("history", h.slice(-400));
     const s = RS.samples; const step = Math.max(1, Math.ceil(s.length / 360)); Store.set("tr-" + rec.id, s.filter((_, i) => i % step === 0).map(x => x.slice(0, 5)));
@@ -1359,7 +1381,7 @@ function openTreadSummary(id, fresh) {
   openSheet(`${sheetHead(fresh ? "Session saved" : r.name, prettyDate(x.date, { weekday: "long", day: "numeric", month: "long" }))}
     ${fresh ? `<p class="sub">${esc(r.name)}${t.complete ? " · route completed" : ""}${t.demo ? " · demo mode" : ""}</p>` : ""}
     <div class="kpis" style="margin:10px 0"><div class="kpi"><b>${fmt(dD(t.dist), 2)}</b><span>${dU()}</span></div><div class="kpi"><b>${hms(t.secs)}</b><span>Time</span></div><div class="kpi"><b>${fmt(spD(t.avgKmh), 1)}</b><span>Avg ${spU()}</span></div><div class="kpi"><b>${paceText(t.avgKmh)}</b><span>Pace /${dU()}</span></div><div class="kpi"><b>${t.elev} m</b><span>Climbed</span></div><div class="kpi"><b>${t.kcal}</b><span>kcal (est.)</span></div>${t.avgHr ? `<div class="kpi"><b>${t.avgHr}</b><span>Avg HR (max ${t.maxHr})</span></div>` : ""}</div>
-    <div class="chart-host">${samplesChart(s)}</div>
+    ${typeof plusSummaryHTML === "function" ? plusSummaryHTML(x) : ""}<div class="chart-host">${samplesChart(s)}</div>
     ${fresh ? `<div class="field"><span class="lbl">How hard was it? (1 = very easy, 10 = maximal)</span><div class="rpe">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-action="tr-rpe" data-id="${id}" data-v="${n}" aria-pressed="${x.rpe === n}">${n}</button>`).join("")}</div></div>` : ""}
     ${typeof treadSummaryExtra === "function" ? treadSummaryExtra(x) : ""}<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-action="tr-csv" data-id="${id}">${ICON.down} Export CSV</button><button class="btn ghost" type="button" data-action="tr-del" data-id="${id}">${ICON.trash} Delete</button><span class="spacer"></span><button class="btn primary" type="button" data-action="close-sheet">Done</button></div>
     <p class="small muted" style="margin-top:8px">Calories are estimated from your body weight, speed and incline (ACSM equations). Treadmill sessions count towards your weekly sessions and streak.</p>`);
@@ -1413,17 +1435,17 @@ function treadImport(code) {
 }
 function routeCard(r) {
   const len = routeLen(r);
-  return `<button class="tr-card" type="button" data-action="tr-route" data-id="${r.id}"><span class="tr-thumb t-${r.theme}">${profileSVG(r, null, 46)}</span><b>${esc(r.name)}</b><span class="small muted">${r.mode === "dist" ? `${fmt(dD(len * 1000), 1)} ${dU()} · climb ${Math.round(routeClimb(r))} m` : r.mode === "time" ? `${Math.round(len / 60)} min · up to ${Math.max(...r.segs.map(s => s[2]))}% incline` : "Any distance"}</span></button>`;
+  return `<button class="tr-card" type="button" data-action="tr-route" data-id="${r.id}"><span class="tr-thumb t-${r.theme}"><canvas class="tr-thumbcv" data-scene="${r.id}" aria-hidden="true"></canvas>${r.mode === "free" ? "" : `<span class="tr-thumb-prof">${profileSVG(r, null, 24)}</span>`}</span><b>${esc(r.name)}</b><span class="small muted">${r.mode === "dist" ? `${fmt(dD(len * 1000), 1)} ${dU()} · climb ${Math.round(routeClimb(r))} m` : r.mode === "time" ? `${Math.round(len / 60)} min · up to ${Math.max(...r.segs.map(s => s[2]))}% incline` : "Any distance"}</span></button>`;
 }
 ACTIONS["tr-route"] = el => {
   const r = routeById(el.dataset.id), len = routeLen(r);
   const segRows = r.mode === "dist" ? r.segs.map((s, i) => `<tr><td>${i + 1}</td><td>${fmt(dD(s[0] * 1000), 2)} ${dU()}</td><td>${s[1] < 0 ? `${s[1]}% → set 0%` : s[1] + "%"}</td></tr>`).join("") : r.mode === "time" ? r.segs.map(s => `<tr><td>${esc(s[3])}</td><td>${hms(s[0])}</td><td>${fmt(spD(s[1]), 1)} ${spU()} · ${s[2]}%</td></tr>`).join("") : "";
   openSheet(`${sheetHead(r.name, r.mode === "time" ? "Interval workout" : "Virtual route")}<p class="sub">${esc(r.blurb)}</p>
-    ${r.mode !== "free" ? `<div class="tr-prof-big t-${r.theme}">${profileSVG(r, null, 90)}</div><div class="kpis" style="margin:10px 0"><div class="kpi"><b>${r.mode === "dist" ? fmt(dD(len * 1000), 1) + " " + dU() : Math.round(len / 60) + " min"}</b><span>${r.mode === "dist" ? "Distance" : "Duration"}</span></div><div class="kpi"><b>${Math.round(routeClimb(r))} m</b><span>Climb</span></div><div class="kpi"><b>${r.segs.length}</b><span>Sections</span></div></div>
+    <div class="tr-hero"><canvas class="tr-thumbcv big" data-scene="${r.id}" aria-hidden="true"></canvas></div>${(() => { const b = typeof bestSessionFor === "function" ? bestSessionFor(r.id, r.mode) : null; return b ? `<div class="note good" style="margin-top:8px">Your best: ${r.mode === "dist" ? hms(b.tread.secs) : fmt(dD(b.tread.dist), 2) + " " + dU()} on ${esc(prettyDate(b.date, { day: "numeric", month: "short" }))}. Race its ghost this time.</div>` : ""; })()}${r.mode !== "free" ? `<div class="tr-prof-big t-${r.theme}">${profileSVG(r, null, 90)}</div><div class="kpis" style="margin:10px 0"><div class="kpi"><b>${r.mode === "dist" ? fmt(dD(len * 1000), 1) + " " + dU() : Math.round(len / 60) + " min"}</b><span>${r.mode === "dist" ? "Distance" : "Duration"}</span></div><div class="kpi"><b>${Math.round(routeClimb(r))} m</b><span>Climb</span></div><div class="kpi"><b>${r.segs.length}</b><span>Sections</span></div></div>
     <details class="tr-det"><summary>Section by section</summary><div class="tbl-wrap"><table class="tbl"><tbody>${segRows}</tbody></table></div></details>` : ""}
     ${r.mode === "dist" ? `<div class="field" style="margin-top:10px"><span class="lbl">Speed on this route</span><div class="seg" role="group" id="tr-pace">${[[0, "My own"], [4.5, ""], [5.5, ""], [6.5, ""], [8, ""], [10, ""]].map(([v, l]) => `<button type="button" data-action="tr-pace" data-v="${v}" aria-pressed="${(UI_TR.pace || 0) === v}">${l || fmt(spD(v), 1)}</button>`).join("")}</div><span class="small muted">${spU()}. With phone control on, the treadmill is set to this speed; otherwise it's shown as a target.</span></div>` : ""}
     <div class="note" style="margin-top:10px">${ctlActive() && ctlCfg().auto ? "Phone control is on: speed and incline change automatically for each section, announced 5 seconds before. Start the belt on the console." : "You'll get a chime and a spoken prompt before each change. Turn on phone control on the Treadmill page to have the treadmill change automatically."}</div>
-    <div class="row" style="margin-top:12px;gap:8px"><button class="btn ghost" type="button" data-action="close-sheet">Cancel</button>${r.custom ? `<button class="btn" type="button" data-action="pb-edit" data-id="${r.id}">Edit</button>` : `<button class="btn" type="button" data-action="pb-copyfrom" data-id="${r.id}">Copy to my programmes</button>`}<span class="spacer"></span><button class="btn primary lg" type="button" data-action="tr-go" data-id="${r.id}">${ICON.play} Start</button></div>`);
+    <div class="row" style="margin-top:12px;gap:8px"><button class="btn ghost" type="button" data-action="close-sheet">Cancel</button>${r.custom ? `<button class="btn" type="button" data-action="pb-edit" data-id="${r.id}">Edit</button>` : `<button class="btn" type="button" data-action="pb-copyfrom" data-id="${r.id}">Copy to my programmes</button>`}<span class="spacer"></span><button class="btn primary lg" type="button" data-action="tr-go" data-id="${r.id}">${ICON.play} Start</button></div>`, null, { after: () => drawThumbs($("#sheet-root")) });
 };
 const UI_TR = { pace: 0 };
 ACTIONS["tr-pace"] = el => { UI_TR.pace = Number(el.dataset.v); $$('#tr-pace button').forEach(b => b.setAttribute("aria-pressed", b === el)); };
@@ -1742,6 +1764,253 @@ ACTIONS["pbi-go"] = () => {
   const list = myProgs(); const name = String(p.n || "Imported programme").slice(0, 40);
   list.unshift({ id: "my_" + uid(), name, theme: PB_THEMES.some(t => t[0] === p.t) ? p.t : "glen", segs, updated: Date.now() }); saveMyProgs(list); closeSheet(); render(); toast(`Imported “${name}”`);
 };
+
+/* ============================================================
+   Treadmill scenery v2: a pseudo-3D road drawn in code.
+   • the road bends and rises with the route's hills
+   • the sky follows the real time of day (dawn, day, dusk, night)
+   • distance-faded hills, trees, lamps, posts and rocks
+   • landmarks from the route appear and get closer, with signs
+   • distance boards every 500 m and a ghost of your best
+   • painted thumbnails for the programme cards
+   ============================================================ */
+const hexRgb = h => { h = h.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+const mixC = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`;
+const shadeC = (c, k) => c.map(v => clamp(Math.round(v * (1 + k)), 0, 255));
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967295; }
+function rnd(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+
+function skyFor(hour, th) {
+  // returns [top, bottom, night(0..1), sun colour, sun height 0..1]
+  const day = [hexRgb(th.sky[0]), hexRgb(th.sky[1])], dusk = [[240, 128, 92], [252, 210, 160]], night = [[10, 20, 48], [34, 52, 92]], dawn = [[246, 176, 138], [253, 230, 200]];
+  const lerpPair = (a, b, t) => [a[0].map((v, i) => v + (b[0][i] - v) * t), a[1].map((v, i) => v + (b[1][i] - v) * t)];
+  let p, n = 0;
+  if (hour < 5) { p = night; n = 1; } else if (hour < 7) { const t = (hour - 5) / 2; p = lerpPair(night, dawn, t); n = 1 - t; }
+  else if (hour < 9) p = lerpPair(dawn, day, (hour - 7) / 2); else if (hour < 17) p = day;
+  else if (hour < 19) p = lerpPair(day, dusk, (hour - 17) / 2); else if (hour < 21) { const t = (hour - 19) / 2; p = lerpPair(dusk, night, t); n = t; } else { p = night; n = 1; }
+  const sunH = hour >= 6 && hour <= 20 ? Math.sin((hour - 6) / 14 * Math.PI) : 0;
+  return { top: p[0].map(Math.round), bot: p[1].map(Math.round), night: n, sunH };
+}
+const SCENE_CACHE = {};
+function sceneTheme(name) {
+  if (SCENE_CACHE[name]) return SCENE_CACHE[name];
+  const th = THEMES[name] || THEMES.glen, g = hexRgb(th.ground), p = hexRgb(th.path);
+  return SCENE_CACHE[name] = Object.assign({}, th, { g1: g, g2: shadeC(g, -0.09), r1: p, r2: shadeC(p, -0.06), rum1: shadeC(p, -0.28), rum2: [236, 232, 222], far: hexRgb(th.far), mid: hexRgb(th.mid), water: th.water ? hexRgb(th.water) : null });
+}
+function landmarkKind(txt) {
+  const t = txt.toLowerCase();
+  return /bridge/.test(t) ? "bridge" : /summit|top|zig|steep/.test(t) ? "cairn" : /museum|centre|science/.test(t) ? "building" : /pier|lighthouse/.test(t) ? "lighthouse" : /waterfall/.test(t) ? "waterfall"
+    : /squirrel|forest|clearing/.test(t) ? "bigpine" : /sisters|mountain/.test(t) ? "peak" : /loch|lochan|bay|view|water|dunes|beach/.test(t) ? "boat" : "sign";
+}
+
+/* core renderer: o = { theme, dist, gradAt(s), seed, v, time, hour, marks:[[m, text]], ghost: metres ahead or null, runner, label } */
+function drawSceneCore(cv, o) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.clientWidth || 360, H = cv.clientHeight || 220;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const th = sceneTheme(o.theme), sky = skyFor(o.hour, th), dist = o.dist, seed = o.seed || 0.3;
+  const f = H * 0.95, camH = 1.6, hzBase = H * 0.42, cx = W / 2;
+  const A = 0.0024, B = 0.0011, p1 = seed * 6.28, p2 = seed * 17.3;
+  const curv = s => A * Math.sin(s / 180 + p1) + B * Math.sin(s / 77 + p2);
+  const turn = s => -A * 180 * Math.cos(s / 180 + p1) - B * 77 * Math.cos(s / 77 + p2);
+  // road points ahead
+  const P = []; let x = 0, dx = 0, y = 0, zPrev = 0;
+  for (let i = 0; i <= 110; i++) {
+    const z = 1 + i * 1.9 + i * i * 0.012, dz = z - zPrev; zPrev = z; const s = dist + z;
+    dx += curv(s) * dz; x += dx * dz; y += clamp(o.gradAt(s), -8, 15) / 100 * dz * 1.8;
+    P.push({ z, x, y, s });
+  }
+  const camY = P[0].y + camH;
+  const pr = p => ({ sx: cx + (p.x - P[0].x * 0.6) * f / p.z, sy: hzBase + (camY - p.y) * f / p.z, k: f / p.z });
+  P.forEach(p => Object.assign(p, pr(p)));
+  const hz = Math.min(hzBase, ...P.slice(-20).map(p => p.sy)) ;
+  // sky
+  let g = ctx.createLinearGradient(0, 0, 0, hz + 4); g.addColorStop(0, `rgb(${sky.top})`); g.addColorStop(1, `rgb(${sky.bot})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, hz + 6);
+  if (sky.night > 0.3) { ctx.fillStyle = `rgba(255,255,255,${(sky.night - 0.3) * 1.2})`; for (let i = 0; i < 60; i++) { const sx = rnd(i) * W, sy = rnd(i + 99) * hz * 0.85; ctx.fillRect(sx, sy, rnd(i + 7) > 0.85 ? 2 : 1, 1); } ctx.fillStyle = `rgba(250,246,230,${sky.night})`; ctx.beginPath(); ctx.arc(W * 0.78, hz * 0.28, H * 0.035, 0, Math.PI * 2); ctx.fill(); }
+  if (sky.sunH > 0) { const sx = W * 0.2 + (1 - sky.sunH) * W * 0.1, sy = hz - sky.sunH * hz * 0.8; const sg = ctx.createRadialGradient(sx, sy, 2, sx, sy, H * 0.16); sg.addColorStop(0, "rgba(255,248,220,.95)"); sg.addColorStop(0.25, "rgba(255,236,180,.5)"); sg.addColorStop(1, "rgba(255,236,180,0)"); ctx.fillStyle = sg; ctx.fillRect(0, 0, W, hz); }
+  // clouds drift
+  ctx.fillStyle = sky.night > 0.5 ? "rgba(180,190,215,.18)" : "rgba(255,255,255,.72)";
+  for (let i = 0; i < 5; i++) { const cw = 30 + rnd(i + seed) * 40, xx = ((rnd(i) * W * 1.6 - turn(dist) * W * 0.5 - o.time * (3 + i)) % (W + 200) + W + 200) % (W + 200) - 100, yy = 14 + rnd(i + 3) * hz * 0.45; ctx.beginPath(); ctx.ellipse(xx, yy, cw, cw * 0.22, 0, 0, Math.PI * 2); ctx.ellipse(xx + cw * 0.5, yy - cw * 0.12, cw * 0.6, cw * 0.2, 0, 0, Math.PI * 2); ctx.fill(); }
+  // mountains / skyline, shifted by heading
+  const fog = sky.bot, nightK = sky.night * 0.55;
+  const shift = turn(dist) * W * 0.9;
+  const ridgeLayer = (col, amp, par, sd, fogT, snow) => {
+    ctx.fillStyle = mixC(mixC(col, fog, fogT).match(/\d+/g).map(Number), [12, 20, 40], nightK); ctx.beginPath(); ctx.moveTo(0, hz + 2);
+    const pts = []; for (let xx = 0; xx <= W + 6; xx += 5) { const yy = hz - Math.abs(ridge(xx + shift * par + sd * 500, sd, amp)) - amp * 0.3; pts.push([xx, yy]); ctx.lineTo(xx, yy); }
+    ctx.lineTo(W, hz + 2); ctx.closePath(); ctx.fill();
+    if (snow) { ctx.save(); ctx.clip(); ctx.fillStyle = `rgba(255,255,255,${0.85 - nightK})`; ctx.fillRect(0, 0, W, hz - amp * 0.95); ctx.restore(); }
+  };
+  if (th.city) { const base = mixC(th.far, fog, 0.25); for (let i = -2; i < W / 22 + 3; i++) { const off = ((shift * 0.6) % 22 + 22) % 22, xx = i * 22 - off, n = Math.floor(shift * 0.6 / 22) + i, hh = 14 + rnd(n) * 50; ctx.fillStyle = base; ctx.fillRect(xx, hz - hh, 19, hh + 2); if (sky.night > 0.3) { ctx.fillStyle = "rgba(255,220,140,.8)"; for (let w = 0; w < 6; w++) if (rnd(n * 9 + w) > 0.55) ctx.fillRect(xx + 3 + (w % 3) * 5, hz - hh + 4 + Math.floor(w / 3) * 8, 2, 3); } } }
+  else ridgeLayer(th.far, H * 0.28, 0.35, 1.3, 0.35, th.snow);
+  ridgeLayer(th.mid, H * 0.11, 0.7, 4.1, 0.15, false);
+  if (th.water) { ctx.fillStyle = mixC(th.water, [12, 20, 40], nightK); ctx.fillRect(0, hz - 2, W, H * 0.05); ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1; for (let i = 0; i < 7; i++) { const yy = hz + 1 + i * 2.2, xx = ((i * 71 - shift * 2 - o.time * 6) % W + W) % W; ctx.beginPath(); ctx.moveTo(xx, yy); ctx.lineTo(xx + 14, yy); ctx.stroke(); } }
+  // ground base
+  ctx.fillStyle = mixC(th.g1, [10, 18, 30], nightK); ctx.fillRect(0, hz + (th.water ? H * 0.05 - 2 : 0), W, H);
+  // road segments far → near
+  const RW = 1.9, RB = 2.25;
+  for (let i = P.length - 1; i > 0; i--) {
+    const a = P[i], b = P[i - 1]; if (b.sy <= a.sy) continue; // hidden behind a crest
+    const band = Math.floor(a.s / 5) % 2, fogT = clamp(a.z / 260, 0, 0.8);
+    const col = c => mixC(mixC(c, fog, fogT).match(/\d+/g).map(Number), [10, 18, 30], nightK);
+    const quad = (w1, w2, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(a.sx - w1 * a.k, a.sy); ctx.lineTo(a.sx + w1 * a.k, a.sy); ctx.lineTo(b.sx + w2 * b.k, b.sy + 0.6); ctx.lineTo(b.sx - w2 * b.k, b.sy + 0.6); ctx.closePath(); ctx.fill(); };
+    ctx.fillStyle = col(band ? th.g1 : th.g2); ctx.fillRect(0, a.sy, W, b.sy - a.sy + 0.8);
+    quad(RB, RB, col(band ? th.rum1 : th.rum2));
+    quad(RW, RW, col(band ? th.r1 : th.r2));
+    if (Math.floor(a.s / 3) % 2 === 0) quad(0.06, 0.06, col([240, 238, 230]));
+  }
+  // sprites (far → near)
+  const S = [], at = m => { // world position for metres-ahead m
+    if (m < 1.2 || m > P[P.length - 1].z) return null;
+    let i = 1; while (i < P.length && P[i].z < m) i++; const a = P[i - 1], b = P[i], t = (m - a.z) / (b.z - a.z || 1);
+    return { sx: a.sx + (b.sx - a.sx) * t, sy: a.sy + (b.sy - a.sy) * t, k: a.k + (b.k - a.k) * t, z: m };
+  };
+  const step = 11, first = Math.ceil(dist / step) * step;
+  for (let s = first; s < dist + 220; s += step) { const n = Math.round(s / step); [-1, 1].forEach(side => { if (rnd(n * 2 + (side > 0)) < 0.35 && th.side !== "lamp") return; const off = th.side === "lamp" ? 2.9 : 3 + rnd(n * 3 + side) * 7; S.push({ m: s - dist, kind: th.side, side, off, n }); }); if (th.side !== "lamp" && rnd(n + 0.5) > 0.6) S.push({ m: s - dist + 5, kind: th.side === "post" ? "rock" : th.side, side: rnd(n) > 0.5 ? 1 : -1, off: 12 + rnd(n + 1) * 10, n }); }
+  for (let s = Math.ceil(dist / 500) * 500; s < dist + 220; s += 500) if (s > 0) S.push({ m: s - dist, kind: "km", side: 1, off: 2.7, text: (tcfg().unit === "mph" ? fmt(s / 1609.344, 2) + " mi" : fmt(s / 1000, 1) + " km") });
+  (o.marks || []).forEach(([m, text]) => { const d = m - dist; if (d > 1 && d < 230) { S.push({ m: d, kind: landmarkKind(text), side: -1, off: 8, text }); S.push({ m: d - 25, kind: "board", side: 1, off: 3.1, text }); } });
+  if (o.ghost != null && o.ghost > 1.5 && o.ghost < 200) S.push({ m: o.ghost, kind: "ghost", side: 1, off: 0.7 });
+  S.sort((a, b) => b.m - a.m).forEach(sp => { const p = at(sp.m); if (!p) return; const fogT = clamp(sp.m / 260, 0, 0.8); drawSprite(ctx, sp, p.sx + sp.side * sp.off * p.k, p.sy, p.k, fogT, fog, nightK, o.time); });
+  if (sky.night > 0.2) { ctx.fillStyle = `rgba(8,14,32,${sky.night * 0.25})`; ctx.fillRect(0, 0, W, H); }
+  if (o.runner) drawRunnerBack(ctx, cx, H, H / 230, o.v, o.time);
+  if (o.badge) { ctx.font = "700 13px system-ui,sans-serif"; const tw = ctx.measureText(o.badge).width; ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(W - tw - 22, 10, tw + 14, 24, 12); else ctx.rect(W - tw - 22, 10, tw + 14, 24); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(o.badge, W - tw - 15, 27); }
+}
+function drawSprite(ctx, sp, x, y, k, fogT, fog, nightK, time) {
+  if (k < 0.6 && sp.kind !== "peak" && sp.kind !== "lighthouse") return;
+  const C = (rgb) => mixC(mixC(rgb, fog, fogT).match(/\d+/g).map(Number), [10, 18, 30], nightK);
+  const rect = (x0, y0, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x + x0 * k, y - (y0 + h) * k, w * k, h * k); };
+  const tri = (pts, c) => { ctx.fillStyle = c; ctx.beginPath(); pts.forEach(([px, py], i) => ctx[i ? "lineTo" : "moveTo"](x + px * k, y - py * k)); ctx.closePath(); ctx.fill(); };
+  const ell = (ex, ey, rx, ry, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x + ex * k, y - ey * k, rx * k, ry * k, 0, 0, Math.PI * 2); ctx.fill(); };
+  const label = (txt, y0, big) => { const fs = clamp(k * (big ? 0.55 : 0.42), 8, 18); ctx.font = `700 ${fs}px system-ui,sans-serif`; const tw = ctx.measureText(txt).width; ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fillRect(x - tw / 2 - 4, y - y0 * k - fs - 4, tw + 8, fs + 6); ctx.fillStyle = "#1C2127"; ctx.fillText(txt, x - tw / 2, y - y0 * k - 3); };
+  switch (sp.kind) {
+    case "tree": rect(-0.15, 0, 0.3, 1.6, C([91, 70, 50])); ell(0, 3, 1.5, 1.8, C([62, 115, 70])); ell(0.5, 3.6, 0.9, 1.1, C([82, 135, 86])); break;
+    case "pine": case "bigpine": { const s = sp.kind === "bigpine" ? 1.8 : 1; rect(-0.15 * s, 0, 0.3 * s, 1 * s, C([91, 70, 50])); tri([[0, 6 * s], [1.6 * s, 1.6 * s], [-1.6 * s, 1.6 * s]], C([46, 85, 55])); tri([[0, 7.2 * s], [1.1 * s, 4 * s], [-1.1 * s, 4 * s]], C([56, 98, 64])); break; }
+    case "rock": ell(0, 0.35, 1.1, 0.6, C([124, 122, 112])); ell(0.3, 0.55, 0.5, 0.35, C([150, 148, 138])); break;
+    case "lamp": rect(-0.06, 0, 0.12, 5, C([61, 67, 74])); rect(-0.06 + (sp.side > 0 ? -1 : 0), 4.9, 1.1, 0.12, C([61, 67, 74])); ell(sp.side > 0 ? -0.95 : 0.95, 4.75, 0.22, 0.12, nightK > 0.1 ? "rgba(255,226,150,.95)" : C([255, 231, 163])); if (nightK > 0.1) { const gx = x + (sp.side > 0 ? -0.95 : 0.95) * k; const gg = ctx.createRadialGradient(gx, y - 4.7 * k, 1, gx, y - 4.7 * k, 2.4 * k); gg.addColorStop(0, "rgba(255,220,140,.45)"); gg.addColorStop(1, "rgba(255,220,140,0)"); ctx.fillStyle = gg; ctx.fillRect(gx - 2.4 * k, y - 7 * k, 4.8 * k, 4.8 * k); } break;
+    case "post": rect(-0.07, 0, 0.14, 1.1, C([107, 88, 68])); rect(-0.07, 0.95, 0.14, 0.15, C([232, 225, 211])); break;
+    case "km": rect(-0.05, 0, 0.1, 1.3, C([90, 90, 90])); rect(-0.6, 1.2, 1.2, 0.55, C([22, 122, 73])); if (k > 4) { ctx.font = `800 ${clamp(k * 0.32, 8, 20)}px system-ui,sans-serif`; ctx.fillStyle = "#fff"; const tw = ctx.measureText(sp.text).width; ctx.fillText(sp.text, x - tw / 2, y - 1.33 * k); } break;
+    case "board": rect(-0.05, 0, 0.1, 1.6, C([90, 90, 90])); rect(-1.6, 1.5, 3.2, 0.8, C([28, 33, 39])); if (k > 3.2) { ctx.font = `700 ${clamp(k * 0.24, 7, 15)}px system-ui,sans-serif`; ctx.fillStyle = "#fff"; let t = sp.text; while (ctx.measureText(t).width > 3.0 * k && t.length > 4) t = t.slice(0, -2); if (t !== sp.text) t += "…"; const tw = ctx.measureText(t).width; ctx.fillText(t, x - tw / 2, y - 1.75 * k); } break;
+    case "bridge": rect(-6, 0, 1, 3.5, C([120, 112, 104])); rect(5, 0, 1, 3.5, C([120, 112, 104])); rect(-7, 3.4, 14, 0.7, C([160, 70, 50])); for (let i = -6; i <= 6; i += 2) rect(i, 3.4, 0.12, 2, C([160, 70, 50])); if (k > 3) label(sp.text, 6.5); break;
+    case "cairn": ell(0, 0.6, 1.3, 0.7, C([128, 124, 114])); ell(0, 1.4, 0.95, 0.55, C([142, 138, 128])); ell(0, 2, 0.6, 0.4, C([156, 152, 142])); rect(-0.03, 2, 0.06, 2.4, C([60, 60, 60])); tri([[0.03, 4.4], [1.3, 4.05], [0.03, 3.7]], "#D7261E"); if (k > 3) label(sp.text, 5); break;
+    case "building": rect(-4, 0, 8, 5, C([196, 188, 176])); tri([[-4.4, 5], [4.4, 5], [0, 7]], C([110, 112, 120])); for (let i = -3; i <= 2; i += 1.6) rect(i, 1.6, 0.8, 1.6, C([90, 130, 170])); if (k > 3) label(sp.text, 8); break;
+    case "lighthouse": tri([[-1, 0], [1, 0], [0.6, 9], [-0.6, 9]], C([240, 240, 236])); rect(-0.75, 3, 1.5, 1, C([215, 38, 30])); rect(-0.75, 6, 1.5, 1, C([215, 38, 30])); rect(-0.8, 9, 1.6, 1.1, C([40, 40, 40])); ell(0, 9.6, 0.5, 0.4, nightK > 0.1 || Math.sin(time * 2) > 0.6 ? "rgba(255,230,120,.95)" : C([255, 240, 190])); if (k > 2.5) label(sp.text, 11); break;
+    case "waterfall": tri([[-3, 0], [3, 0], [2, 6], [-2, 6]], C([110, 112, 104])); rect(-0.7, 0, 1.4, 5.8, C([190, 225, 245])); for (let i = 0; i < 4; i++) rect(-0.6 + i * 0.35, ((time * 3 + i) % 5.8), 0.12, 0.8, "rgba(255,255,255,.9)"); if (k > 3) label(sp.text, 7); break;
+    case "boat": rect(-2, 0, 4, 0.3, C([60, 120, 160])); tri([[-1.2, 0.35], [1.4, 0.35], [1, 0.9], [-1, 0.9]], C([160, 60, 40])); rect(-0.04, 0.9, 0.08, 2.2, C([80, 70, 60])); tri([[0.06, 3], [1.1, 1.1], [0.06, 1.1]], C([245, 242, 232])); if (k > 3) label(sp.text, 3.6); break;
+    case "peak": tri([[-9, 0], [0, 9], [9, 0]], C([118, 124, 132])); tri([[-2.4, 6.6], [0, 9], [2.4, 6.6], [0.8, 6.9], [-0.6, 6.5]], C([245, 247, 250])); if (k > 1.5) label(sp.text, 10); break;
+    case "sign": rect(-0.05, 0, 0.1, 1.8, C([107, 88, 68])); rect(-0.9, 1.4, 1.8, 0.45, C([232, 225, 211])); if (k > 3) label(sp.text, 2.2); break;
+    case "ghost": { ctx.save(); ctx.globalAlpha = 0.55; drawRunnerBack(ctx, x, y + 0.02 * k, k * 1.75 / 95, 7, time * 1.07, "#2C6BE0"); ctx.restore(); if (k > 3) { ctx.font = `800 ${clamp(k * 0.3, 8, 14)}px system-ui,sans-serif`; ctx.fillStyle = "#2C6BE0"; const tw = ctx.measureText("BEST").width; ctx.fillText("BEST", x - tw / 2, y - 2.1 * k); } break; }
+  }
+}
+/* runner seen from behind; sc = pixels per unit (≈ figure height 95 units) */
+function drawRunnerBack(ctx, x, yBase, sc, v, time, shirt = "#167A49") {
+  const moving = v > 0.3, run = v >= 7, ph = moving ? time * (run ? 9 : 6.2) : 0, sw = Math.sin(ph);
+  const H = 95 * sc, hip = yBase - H * 0.48, sh = yBase - H * 0.8, bob = moving ? Math.abs(Math.cos(ph)) * H * (run ? 0.03 : 0.012) : 0;
+  ctx.save(); ctx.translate(0, -bob);
+  ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.beginPath(); ctx.ellipse(x, yBase + bob, H * 0.2, H * 0.035, 0, 0, Math.PI * 2); ctx.fill();
+  const leg = (side, lift) => { ctx.strokeStyle = "#1F2830"; ctx.lineWidth = H * 0.085; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(x + side * H * 0.06, hip); ctx.lineTo(x + side * H * 0.075, yBase - H * 0.24 - lift * H * 0.1); ctx.lineTo(x + side * H * 0.07, yBase - lift * H * 0.16); ctx.stroke(); ctx.fillStyle = "#E8E8E8"; ctx.fillRect(x + side * H * 0.07 - H * 0.045, yBase - lift * H * 0.16 - H * 0.03, H * 0.09, H * 0.045); };
+  leg(-1, Math.max(0, sw)); leg(1, Math.max(0, -sw));
+  const arm = (side, s) => { ctx.strokeStyle = "#C99A78"; ctx.lineWidth = H * 0.06; ctx.beginPath(); ctx.moveTo(x + side * H * 0.13, sh + H * 0.03); ctx.lineTo(x + side * H * 0.17, sh + H * 0.17 - s * H * 0.05); ctx.lineTo(x + side * H * 0.14, sh + H * 0.27 - s * H * 0.12); ctx.stroke(); };
+  arm(-1, -sw); arm(1, sw);
+  ctx.fillStyle = "#26323C"; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x - H * 0.1, hip - H * 0.02, H * 0.2, H * 0.12, H * 0.03); else ctx.rect(x - H * 0.1, hip - H * 0.02, H * 0.2, H * 0.12); ctx.fill();
+  ctx.fillStyle = shirt; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x - H * 0.13, sh, H * 0.26, H * 0.34, H * 0.06); else ctx.rect(x - H * 0.13, sh, H * 0.26, H * 0.34); ctx.fill();
+  ctx.fillStyle = "#3B2A20"; ctx.beginPath(); ctx.arc(x, sh - H * 0.08, H * 0.075, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+/* live session wrapper (replaces the simple renderer) */
+drawScene = function (cv, dist, grad, v, time) {
+  const r = RS.route, now = new Date(), hour = Number.isFinite(window.__forceHour) ? window.__forceHour : now.getHours() + now.getMinutes() / 60;
+  const gradAt = s => {
+    if (r.mode === "dist") { const sg = segAt(r, s / 1000); return sg ? r.segs[sg.i][1] : 0; }
+    if (r.mode === "time") { const tg = RS.target; return (tg ? tg.g : RS.inc || 0) + Math.sin(s / 90) * 0.6; }
+    return (RS.inc || 0) + Math.sin(s / 120) * 1.2;
+  };
+  const marks = r.mode === "dist" ? (r.marks || []).map(([km, t]) => [km * 1000, t]) : [];
+  const ghost = typeof ghostAhead === "function" ? ghostAhead() : null;
+  drawSceneCore(cv, { theme: r.theme, dist, gradAt, seed: hashStr(r.id), v, time, hour, marks, ghost, runner: true, badge: `${grad > 0.4 ? "▲" : grad < -0.4 ? "▼" : "▬"} ${fmt(grad, 0)}%` });
+};
+/* thumbnails for cards and route sheets */
+function drawThumb(cv, r, big) {
+  const segs = r.segs || [], avg = r.mode === "dist" ? Math.max(0, ...segs.map(s => s[1])) : r.mode === "time" ? Math.max(0, ...segs.map(s => s[2])) : 2;
+  drawSceneCore(cv, { theme: r.theme, dist: 400 + hashStr(r.id) * 3000, gradAt: s => avg * 0.6 * (0.6 + 0.4 * Math.sin(s / 60)), seed: hashStr(r.id), v: 0, time: 0, hour: 13, marks: r.mode === "dist" && r.marks && r.marks[0] && big ? [[400 + hashStr(r.id) * 3000 + 60, r.marks[0][1]]] : [], ghost: null, runner: !!big });
+}
+function drawThumbs(root) { $$("canvas.tr-thumbcv", root || document).forEach(cv => { if (cv._drawn) return; const r = routeById(cv.dataset.scene); if (!r) return; cv._drawn = 1; try { drawThumb(cv, r, cv.classList.contains("big")); } catch (e) { console.error(e); } }); }
+AFTER.tread = () => drawThumbs($("#main"));
+
+/* ============================================================
+   Treadmill sessions, interactive layer:
+   • "Now / Next" block card with a countdown ring
+   • skip a block or add 30 s to it
+   • ghost race against your best on the same programme
+   • kilometre (or mile) splits with spoken times and a
+     comparison against your best, shown in the summary
+   ============================================================ */
+/* ---------- ghost: your best previous session of this programme ---------- */
+function bestSessionFor(routeId, mode) {
+  const list = (typeof treadHistory === "function" ? treadHistory() : []).filter(x => x.tread && x.tread.route === routeId && (Store.get("tr-" + x.id, []) || []).length > 2);
+  if (!list.length) return null;
+  if (mode === "dist") { const done = list.filter(x => x.tread.complete); const pool = done.length ? done : list; return pool.sort((a, b) => (b.tread.dist / Math.max(1, b.tread.secs)) - (a.tread.dist / Math.max(1, a.tread.secs)))[0]; }
+  return list.sort((a, b) => b.tread.dist - a.tread.dist)[0];
+}
+function ghostDistAt(samples, t) {
+  if (!samples || samples.length < 2) return null;
+  if (t <= samples[0][0]) return samples[0][3];
+  for (let i = 1; i < samples.length; i++) if (samples[i][0] >= t) { const a = samples[i - 1], b = samples[i], k = (t - a[0]) / Math.max(1, b[0] - a[0]); return a[3] + (b[3] - a[3]) * k; }
+  return null; // ghost finished
+}
+function ghostAhead() { if (!RS.on || !RS.ghost) return null; const g = ghostDistAt(RS.ghost.s, RS.active); return g == null ? null : g - RS.dist; }
+function plusStart() {
+  const best = bestSessionFor(RS.route.id, RS.route.mode);
+  RS.ghost = best ? { id: best.id, s: Store.get("tr-" + best.id, []), when: best.date, splits: best.tread.splits || null, secs: best.tread.secs, dist: best.tread.dist } : null;
+  RS.splits = []; RS.nextSplit = splitUnit(); RS.posOff = 0;
+}
+const splitUnit = () => tcfg().unit === "mph" ? 1609.344 : 1000;
+function plusTick() {
+  if (!RS.on) return;
+  if (!RS.splits) plusStart();
+  while (RS.dist >= RS.nextSplit) {
+    const n = RS.splits.length + 1, prevT = RS.splits.length ? RS.splits[RS.splits.length - 1].t : 0, secs = RS.active - prevT;
+    RS.splits.push({ n, t: Math.round(RS.active), s: Math.round(secs) });
+    let cmp = "";
+    if (RS.ghost && RS.ghost.splits && RS.ghost.splits[n - 1]) { const d = Math.round(RS.ghost.splits[n - 1].t - RS.active); cmp = d > 0 ? `, ${hms(d)} ahead of your best` : d < 0 ? `, ${hms(-d)} behind your best` : ", level with your best"; }
+    runPrompt(`${n} ${tcfg().unit === "mph" ? "mile" : "kilometre"}${n > 1 ? "s" : ""} done. That one took ${hms(secs)}${cmp}.`, true);
+    RS.nextSplit += splitUnit();
+  }
+}
+/* ---------- now / next card ---------- */
+function ring(frac, label, sub) {
+  const r = 26, c = 2 * Math.PI * r, off = c * (1 - clamp(frac, 0, 1));
+  return `<svg class="tr-ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--surface-3)" stroke-width="7"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 32 32)"/><text x="32" y="${sub ? 31 : 37}" text-anchor="middle" font-size="${label.length > 4 ? 12 : 15}" font-weight="800" fill="currentColor">${esc(label)}</text>${sub ? `<text x="32" y="45" text-anchor="middle" font-size="9" fill="currentColor" opacity=".7">${esc(sub)}</text>` : ""}</svg>`;
+}
+function plusBlockHTML() {
+  if (!RS.on) return "";
+  const r = RS.route, ga = ghostAhead();
+  const ghostHTML = RS.ghost ? `<div class="tr-ghost ${ga == null ? "" : ga > 0 ? "behind" : "ahead"}"><b>${ga == null ? "Best finished" : ga > 0 ? `${fmt(Math.abs(ga), 0)} m behind your best` : `${fmt(Math.abs(ga), 0)} m ahead of your best`}</b><span class="small">Ghost from ${esc(prettyDate(RS.ghost.when, { day: "numeric", month: "short" }))}</span></div>` : "";
+  if (r.mode === "free") return ghostHTML;
+  const pos = runPos(), sg = segAt(r, pos); if (!sg) return `<div class="tr-block done"><b>Programme complete</b><span class="small">Cool down, then tap Finish.</span></div>${ghostHTML}`;
+  const t = targetOf(r, sg.i), n = targetOf(r, sg.i + 1), frac = (pos - sg.start) / (sg.end - sg.start), left = sg.end - pos;
+  const leftTxt = r.mode === "time" ? hms(left) : `${fmt(dD(left * 1000) * (tcfg().unit === "mph" ? 1 : 1000), 0)}${tcfg().unit === "mph" ? "" : " m"}`;
+  const tgt = x => r.mode === "time" ? `${fmt(spD(x.v), 1)} ${spU()} · ${fmt(x.g, 0)}%` : `${fmt(x.g, 0)}%${x.v ? ` · ${fmt(spD(x.v), 1)} ${spU()}` : ""}`;
+  return `<div class="tr-block">${ring(frac, r.mode === "time" ? hms(left) : (tcfg().unit === "mph" ? fmt(dD(left * 1000), 2) : fmt(left * 1000, 0)), r.mode === "time" ? "left" : (tcfg().unit === "mph" ? "mi" : "m"))}
+      <div class="tr-block-txt"><span class="eyebrow">Now · ${sg.i + 1} of ${r.segs.length}</span><b>${esc(t.label)}</b><span>${tgt(t)}</span>${n ? `<span class="tr-next">Next: <b>${esc(n.label)}</b> ${tgt(n)}</span>` : `<span class="tr-next">Last block</span>`}</div>
+      ${r.mode === "time" ? `<div class="tr-block-btns"><button class="btn sm" type="button" data-action="blk-more">+30 s</button><button class="btn sm" type="button" data-action="blk-skip" ${n ? "" : "disabled"}>Skip ›</button></div>` : ""}</div>${ghostHTML}`;
+}
+ACTIONS["blk-skip"] = () => { const r = RS.route, sg = segAt(r, runPos()); if (!sg || r.mode !== "time") return; RS.posOff = (RS.posOff || 0) + (sg.end - runPos()) + 0.01; RS.warned = -1; runRoute(); runHUD(); };
+ACTIONS["blk-more"] = () => { const r = RS.route; if (r.mode !== "time") return; const sg = segAt(r, runPos()); if (!sg) return;
+  if (!RS.ownRoute) { RS.route = Object.assign({}, r, { segs: r.segs.map(x => x.slice()) }); RS.ownRoute = true; }
+  RS.route.segs[sg.i][0] += 30; RS.warned = -1; toast("Added 30 seconds to this block"); runHUD(); };
+
+/* ---------- summary extras ---------- */
+function plusSummaryHTML(x) {
+  const t = x.tread, r = routeById(t.route), sp = t.splits || [];
+  const prev = (typeof treadHistory === "function" ? treadHistory() : []).filter(h => h.id !== x.id && h.tread && h.tread.route === t.route && h.t0 < x.t0);
+  let cmp = "";
+  if (prev.length && r) {
+    if (r.mode === "dist" && t.complete) { const done = prev.filter(h => h.tread.complete); if (done.length) { const best = Math.min(...done.map(h => h.tread.secs)); const d = best - t.secs; cmp = d > 0 ? `<div class="note good"><b>New best!</b> ${hms(d)} faster than your previous best (${hms(best)}).</div>` : `<div class="note">Your best on this route is ${hms(best)}, ${hms(-d)} quicker than today.</div>`; } }
+    else { const best = Math.max(...prev.map(h => h.tread.dist)); const d = t.dist - best; cmp = d > 0 ? `<div class="note good"><b>Furthest yet!</b> ${fmt(dD(d), 2)} ${dU()} more than your previous best.</div>` : `<div class="note">Your best on this programme is ${fmt(dD(best), 2)} ${dU()}.</div>`; }
+  }
+  const splitsTbl = sp.length ? `<details class="tr-det" ${sp.length <= 6 ? "open" : ""}><summary>Splits (${sp.length})</summary><div class="tbl-wrap"><table class="tbl"><thead><tr><th>${tcfg().unit === "mph" ? "Mile" : "Km"}</th><th class="r">Split</th><th class="r">Total</th></tr></thead><tbody>${sp.map(s => `<tr><td>${s.n}</td><td class="r mono">${hms(s.s)}</td><td class="r mono">${hms(s.t)}</td></tr>`).join("")}</tbody></table></div></details>` : "";
+  return cmp + splitsTbl;
+}
 
 /* ============================================================
    CAS Treadmill — companion page for Bluefy (no sign-in).
