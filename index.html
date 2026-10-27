@@ -513,6 +513,16 @@ button.linkish{color:var(--accent);font-weight:600}
 .tr-msg{background:var(--ink);color:var(--bg);border-radius:var(--radius-sm);padding:10px 12px;font-weight:600}
 #tr-msg{display:flex;flex-direction:column;gap:6px}
 .tr-demo{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--surface-2);border:1px dashed var(--line-strong);border-radius:var(--radius-sm);padding:8px}
+.tr-ctl{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius);padding:12px}
+.tr-ctl-row{display:grid;grid-template-columns:64px 56px 1fr 56px;gap:10px;align-items:center}
+.tr-ctl-row b{font-family:var(--f-display);font-size:34px;font-weight:900;text-align:center;line-height:1}
+.tr-ctl-row b small{display:block;font-family:var(--f-body);font-size:12px;font-weight:600;color:var(--ink-3)}
+.ctl-b{height:56px;border-radius:14px;border:1px solid var(--line-strong);background:var(--surface-2);font-size:30px;font-weight:700;color:var(--ink);cursor:pointer}
+.ctl-b:disabled{opacity:.35}
+.tr-ctl .chips{display:flex;flex-wrap:wrap;gap:6px}
+.btn.tr-stop,.btn.danger.tr-stop{width:100%;min-height:60px;font-size:20px;font-weight:900;letter-spacing:.06em;background:#D7261E;color:#fff;border-color:#D7261E}
+#tr-nav:has(.tr-stop){grid-template-columns:1fr auto auto}
+#tr-nav .tr-stop{min-height:54px;font-size:18px}
 
 #tabs{display:none}#btn-settings{display:none}
 </style>
@@ -1022,6 +1032,7 @@ async function tmAttach() {
   ch.addEventListener("characteristicvaluechanged", tmOnValue);
   TM.attachStage = "notify"; await ch.startNotifications();
   TM.attachStage = ""; TM.ch = ch; TM.state = "on"; TM.data = {};
+  try { await ctlSetup(svc); } catch (e) { console.error(e); }
 }
 function tmErrorHTML() {
   const st = TM.errStage, map = {
@@ -1050,12 +1061,13 @@ async function tmLost() {
   }
   TM.state = "off"; TM.errStage = "lost"; TM.err = "connection dropped"; tmRefresh();
 }
-function tmDisconnect() { TM.wantOn = false; stopDemo(); try { if (TM.dev && TM.dev.gatt.connected) TM.dev.gatt.disconnect(); } catch (e) {} TM.state = "off"; TM.ch = null; tmRefresh(); }
+function tmDisconnect() { TM.wantOn = false; TM.ctl = null; stopDemo(); try { if (TM.dev && TM.dev.gatt.connected) TM.dev.gatt.disconnect(); } catch (e) {} TM.state = "off"; TM.ch = null; tmRefresh(); }
 function startDemo() {
-  tmDisconnect(); TM.state = "demo"; TM.name = "Demo treadmill"; TM.demo = { speed: 0, incline: 0, dist: 0, follow: true }; TM.data = {};
+  tmDisconnect(); TM.state = "demo"; TM.name = "Demo treadmill"; TM.demo = { speed: 0, incline: 0, dist: 0 }; TM.data = {}; ctlDemoSetup();
   TM.demoIv = setInterval(() => {
     const d = TM.demo, s = RS.on ? RS : null;
-    if (d.follow && s && s.target) { if (s.target.v) d.speed += clamp(s.target.v - d.speed, -1, 1); if (Number.isFinite(s.target.g)) d.incline += clamp(s.target.g - d.incline, -1, 1); }
+    if (Number.isFinite(d.tSpeed)) { d.speed += clamp(d.tSpeed - d.speed, -0.5, 0.5); if (Math.abs(d.tSpeed - d.speed) < 0.01) d.tSpeed = undefined; }
+    if (Number.isFinite(d.tIncline)) { d.incline += clamp(d.tIncline - d.incline, -1, 1); if (Math.abs(d.tIncline - d.incline) < 0.01) d.tIncline = undefined; }
     d.dist += d.speed / 3.6;
     Object.assign(TM.data, { speed: Math.round(d.speed * 100) / 100, incline: Math.round(d.incline * 10) / 10, dist: Math.round(d.dist), hr: d.speed > 0 ? Math.round(78 + d.speed * 7 + d.incline * 2.5) : undefined, t: Date.now() });
     TM.at = Date.now(); tmEmit();
@@ -1090,7 +1102,18 @@ const WORKOUTS = [
   { id: "fatburn", name: "Rolling Fat-Burn Walk", theme: "forest", mode: "time", blurb: "40 minutes brisk walking over rolling hills.", segs: [[300, 5, 1, "Warm-up"], ...Array.from({ length: 5 }, () => [[180, 5.8, 3, "Rolling"], [180, 5.6, 6, "Hill"]]).flat(), [300, 5, 0, "Cool-down"]] },
   { id: "speed", name: "Speed Intervals", theme: "coast", mode: "time", blurb: "Runners: 8 × 1 minute fast, 1 minute recovery.", segs: [[420, 7.5, 1, "Warm-up"], ...Array.from({ length: 8 }, () => [[60, 12, 1, "Fast"], [60, 7, 1, "Recover"]]).flat(), [300, 6, 0, "Cool-down"]] },
 ];
-const ALLR = () => ROUTES.concat(WORKOUTS);
+const rep_ = (n, a) => Array.from({ length: n }, () => a).flat();
+const HIWALKS = [
+  { id: "hw_iwt", name: "Japanese Interval Walking", theme: "loch", mode: "time", blurb: "The well-researched IWT method: 3 minutes fast, 3 minutes easy, five times. Fast should feel hard (breathless, can't chat).", segs: [[180, 4.5, 1, "Warm-up"], ...rep_(5, [[180, 6.5, 1, "Fast walk"], [180, 4.5, 1, "Easy walk"]]), [180, 4.2, 0, "Cool-down"]] },
+  { id: "hw_power", name: "Incline Power Intervals", theme: "mountain", mode: "time", blurb: "8 rounds of 2 minutes at 12% and 1 minute at 4%. Big calorie burn at walking pace.", segs: [[300, 5, 2, "Warm-up"], ...rep_(8, [[120, 5.5, 12, "Power climb"], [60, 5, 4, "Recover"]]), [240, 4.5, 0, "Cool-down"]] },
+  { id: "hw_everest", name: "Everest Pyramid", theme: "mountain", mode: "time", blurb: "Climb from 2% to the treadmill's 15% maximum in 1-minute steps, then back down.", segs: [[180, 4.8, 0, "Warm-up"], ...[2, 4, 6, 8, 10, 12, 14, 15, 14, 12, 10, 8, 6, 4, 2].map(g => [60, 4.8, g, g === 15 ? "Summit" : "Step " + g + "%"]), [180, 4.2, 0, "Cool-down"]] },
+  { id: "hw_hiit", name: "Walking HIIT 1:1", theme: "forest", mode: "time", blurb: "10 × 1 minute very brisk uphill, 1 minute easy. Short, sharp and hard.", segs: [[240, 5, 1, "Warm-up"], ...rep_(10, [[60, 6.8, 8, "Hard"], [60, 4.5, 3, "Easy"]]), [240, 4.5, 0, "Cool-down"]] },
+  { id: "hw_stairs", name: "Stair-Climber Simulation", theme: "city", mode: "time", blurb: "Slow and very steep, like climbing stairs: 3 minutes at 15%, 2 minutes recovery, six times.", segs: [[240, 4.5, 3, "Warm-up"], ...rep_(6, [[180, 3.8, 15, "Stair climb"], [120, 4.5, 5, "Recover"]]), [180, 4.2, 0, "Cool-down"]] },
+  { id: "hw_ladder", name: "Speed–Incline Ladder", theme: "glen", mode: "time", blurb: "Four ladders of rising speed and incline, each ending with an easy 2 minutes.", segs: [[240, 5, 1, "Warm-up"], ...rep_(4, [[120, 5.5, 6, "Rung 1"], [120, 6, 8, "Rung 2"], [120, 6.5, 10, "Rung 3"], [120, 4.5, 2, "Easy"]]), [240, 4.5, 0, "Cool-down"]] },
+  { id: "hw_steep25", name: "25-Minute Steep Climb", theme: "mountain", mode: "time", blurb: "One long, steady climb at the maximum 15%. Tough on calves: work up from 10% over a few weeks.", segs: [[300, 4.5, 3, "Warm-up"], [300, 4.5, 10, "Settle in"], [1500, 4.5, 15, "Steep climb"], [300, 4, 0, "Cool-down"]] },
+  { id: "hw_hike", name: "Mountain Hike 50", theme: "forest", mode: "time", blurb: "A 50-minute hill hike: 5-minute blocks building to 14% and easing back down.", segs: [[300, 4.5, 2, "Warm-up"], ...[6, 8, 10, 12, 14, 12, 10, 8].map(g => [300, 5, g, `Hike ${g}%`]), [300, 4.2, 0, "Cool-down"]] },
+];
+const ALLR = () => ROUTES.concat(WORKOUTS, HIWALKS);
 const routeById = id => ALLR().find(r => r.id === id);
 function routeLen(r) { return r.mode === "dist" ? r.segs.reduce((a, s) => a + s[0], 0) : r.mode === "time" ? r.segs.reduce((a, s) => a + s[0], 0) : 0; }
 function routeClimb(r) { return r.mode === "dist" ? r.segs.reduce((a, s) => a + Math.max(0, s[1]) * s[0] * 10, 0) : r.segs.reduce((a, s) => a + s[0] * s[1] / 3.6 * s[2] / 100, 0); }
@@ -1161,11 +1184,12 @@ function runRoute() {
   if (sg.i !== RS.seg) {
     RS.seg = sg.i;
     const t = tg, msg = r.mode === "dist" ? (t.real < 0 ? `Downhill now. Set the incline to 0%${t.real <= -4 ? " and lift your pace a little" : ""}.` : `${t.label}: set the incline to ${fmt(t.g, 0)}%.`) : `${t.label}: ${spd(t.v)}, incline ${fmt(t.g, 0)}%.`;
-    if (sg.i > 0 || r.mode === "time") runPrompt(msg, true); else RS.msg = msg;
+    if (ctlActive() && ctlCfg().auto) { RS.msg = t.label + (r.mode === "time" ? `: ${spd(Math.min(t.v, ctlCfg().maxKmh))}, ${fmt(t.g, 0)}%` : `: ${fmt(t.g, 0)}%`); if (beltMoving()) { RS.ctlSeg = sg.i; ctlPlan(t); } }
+    else if (sg.i > 0 || r.mode === "time") runPrompt(msg, true); else RS.msg = msg;
   }
   // early warning before a change
   const next = targetOf(r, sg.i + 1), left = sg.end - pos, warnAt = r.mode === "dist" ? 0.15 : 10;
-  if (next && left <= warnAt && RS.warned !== sg.i && (next.g !== tg.g || next.v !== tg.v)) {
+  if (next && left <= warnAt && RS.warned !== sg.i && (next.g !== tg.g || next.v !== tg.v) && !(ctlActive() && ctlCfg().auto)) {
     RS.warned = sg.i;
     runPrompt(r.mode === "dist" ? `In ${Math.round(left * 1000 / 10) * 10} metres: incline ${fmt(next.g, 0)}%.` : `In ${Math.round(left)} seconds: ${next.label.toLowerCase()}, ${spd(next.v)}, incline ${fmt(next.g, 0)}%.`, true);
   }
@@ -1174,7 +1198,7 @@ function runRoute() {
 function runHUD(full) {
   const root = $("#tread-run"); if (!root || !RS.on) return;
   const r = RS.route, pos = runPos(), L = routeLen(r), tg = RS.target, inc = RS.inc || 0, v = RS.v || 0;
-  const incOff = tg && Number.isFinite(tg.g) && Math.abs(inc - tg.g) > 0.6, spOff = tg && tg.v && Math.abs(v - tg.v) > 0.4;
+  const auto = ctlActive() && ctlCfg().auto, incOff = !auto && tg && Number.isFinite(tg.g) && Math.abs(inc - tg.g) > 0.6, spOff = !auto && tg && tg.v && Math.abs(v - tg.v) > 0.4;
   const conn = TM.state === "on" ? `<span class="pill good">${ICON.bt} ${esc(TM.name)}</span>` : TM.state === "demo" ? `<span class="pill accent">Demo</span>` : TM.state === "reconnecting" ? `<span class="pill warn">Reconnecting…</span>` : `<span class="pill bad">Not connected</span>`;
   const avgHr = RS.hrs.length ? Math.round(RS.hrs.reduce((a, b) => a + b, 0) / RS.hrs.length) : null;
   const pct = r.mode === "free" ? 0 : clamp(pos / L * 100, 0, 100);
@@ -1192,22 +1216,22 @@ function runHUD(full) {
       </div>`,
     route: r.mode === "free" ? "" : `<div class="tr-prof">${profileSVG(r, pos, 56)}<div class="row between small muted"><span>${Math.round(pct)}%</span><span>${left}</span></div></div>`,
     msg: `${RS.paused ? `<div class="note warn">${RS.manualPause ? "Recording paused" : "Belt stopped: recording paused"}</div>` : ""}${incOff ? `<div class="note warn"><b>${inc < tg.g ? "Raise" : "Lower"} the incline to ${fmt(tg.g, 0)}%</b> on the console.</div>` : ""}${spOff && !incOff ? `<div class="note warn"><b>${v < tg.v ? "Speed up" : "Slow down"} to ${fmt(spD(tg.v), 1)} ${spU()}</b> on the console.</div>` : ""}${RS.msg ? `<div class="tr-msg">${esc(RS.msg)}</div>` : ""}`,
-    demo: TM.state === "demo" ? `<div class="tr-demo"><span class="small muted">Demo treadmill</span><button class="btn sm" type="button" data-action="dm" data-k="speed" data-d="-0.5">− speed</button><button class="btn sm" type="button" data-action="dm" data-k="speed" data-d="0.5">+ speed</button><button class="btn sm" type="button" data-action="dm" data-k="incline" data-d="-1">− incline</button><button class="btn sm" type="button" data-action="dm" data-k="incline" data-d="1">+ incline</button><label class="small"><input type="checkbox" data-change="dm-follow" ${TM.demo && TM.demo.follow ? "checked" : ""}> auto-follow targets</label></div>` : "",
-    nav: `<button class="btn lg" type="button" data-action="tr-pause">${RS.manualPause ? `${ICON.play} Resume` : `${ICON.pause} Pause`}</button><span></span><button class="btn primary lg" type="button" data-action="tr-finish">${ICON.check} Finish</button>`,
+    demo: ctlBarHTML(),
+    nav: ctlActive() ? `<button class="btn danger lg tr-stop" type="button" data-action="ctl-stop">STOP BELT</button><button class="btn lg" type="button" data-action="tr-pause" aria-label="${RS.manualPause ? "Resume recording" : "Pause recording"}">${RS.manualPause ? ICON.play : ICON.pause}</button><button class="btn primary lg" type="button" data-action="tr-finish">${ICON.check}</button>` : `<button class="btn lg" type="button" data-action="tr-pause">${RS.manualPause ? `${ICON.play} Resume` : `${ICON.pause} Pause`}</button><span></span><button class="btn primary lg" type="button" data-action="tr-finish">${ICON.check} Finish</button>`,
   };
   if (full || !root.querySelector(".pl-top")) {
     root.innerHTML = `<div class="pl-top" id="tr-top"></div><div class="pl-prog"><i id="tr-bar"></i></div>
       <div class="tr-scene"><canvas id="tr-cv" aria-label="Virtual scenery moving at your treadmill speed"></canvas></div>
-      <div class="pl-body tr-body"><div id="tr-msg"></div><div id="tr-stats"></div><div id="tr-route"></div><div id="tr-demo"></div>
-      <p class="small muted">Change speed and incline on the treadmill console. This app only reads the treadmill. Keep the safety key clipped on.</p></div>
+      <div class="pl-body tr-body"><div id="tr-msg"></div><div id="tr-demo"></div><div id="tr-stats"></div><div id="tr-route"></div>
+      <p class="small muted" id="tr-foot"></p></div>
       <div class="pl-nav" id="tr-nav"></div>`;
   }
   const set = (id, h) => { const el = $("#" + id); if (el && el._h !== h) { el.innerHTML = h; el._h = h; } };
+  set("tr-foot", ctlActive() ? "Phone control is on. The safety key and the console STOP always override the phone." : "Change speed and incline on the treadmill console. Keep the safety key clipped on.");
   set("tr-top", html.top); set("tr-stats", html.stats); set("tr-route", html.route); set("tr-msg", html.msg); set("tr-demo", html.demo); set("tr-nav", html.nav);
   const bar = $("#tr-bar"); if (bar) bar.style.width = pct + "%";
 }
-ACTIONS.dm = el => { if (!TM.demo) return; const k = el.dataset.k; TM.demo[k] = clamp(TM.demo[k] + Number(el.dataset.d), 0, k === "speed" ? 20 : 15); TM.demo.follow = false; runHUD(); };
-CHANGES["dm-follow"] = el => { if (TM.demo) TM.demo.follow = el.checked; };
+ACTIONS.dm = el => { if (!TM.demo) return; const k = el.dataset.k; TM.demo[k] = clamp(TM.demo[k] + Number(el.dataset.d), 0, k === "speed" ? 20 : 15); TM.demo[k === "speed" ? "tSpeed" : "tIncline"] = undefined; runHUD(); };
 ACTIONS["tr-pause"] = () => { RS.manualPause = !RS.manualPause; runHUD(); };
 
 /* ---------- scenery renderer (pseudo-3D, drawn in code) ---------- */
@@ -1292,7 +1316,7 @@ ACTIONS["tr-finish"] = el => {
 };
 ACTIONS["tr-discard"] = () => { closeSheet(); finishRun(false); };
 function finishRun(save) {
-  RS.on = false; cancelAnimationFrame(RS.raf); TM.subs.delete(RS.unsub); Wake.off();
+  RS.ctlPend = null; RS.on = false; cancelAnimationFrame(RS.raf); TM.subs.delete(RS.unsub); Wake.off();
   let rec = null;
   if (save) {
     const end = Date.now(), r = RS.route, hrs = RS.hrs;
@@ -1400,10 +1424,13 @@ VIEWS.tread = () => {
     : `<p class="small">${IS_COMPANION ? "This browser can't connect to Bluetooth fitness machines. On iPhone, open this page in the free <b>Bluefy</b> browser." : "Safari on iPhone can't connect to Bluetooth fitness machines. Run treadmill sessions in <b>CAS Treadmill</b> (no sign-in) inside the free <b>Bluefy</b> browser; sessions come back here with one tap."}</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" type="button" data-action="tm-bluefy">${ICON.bt} How to connect on iPhone</button><button class="btn" type="button" data-action="tm-demo">Try demo mode</button></div>`;
   return `<div class="view-head"><div><div class="eyebrow">Horizon 7.4 AT · Bluetooth FTMS</div><h1 class="h1">Treadmill</h1></div></div>${typeof treadViewExtra === "function" ? treadViewExtra() : ""}
     <section class="card tr-conn ${st === "on" ? "on" : ""}"><div class="card-head"><h2 class="h3">${ICON.bt} Treadmill link</h2><span class="pill ${st === "on" ? "good" : st === "demo" ? "accent" : ""}">${{ on: "Connected", demo: "Demo", connecting: "Connecting", reconnecting: "Reconnecting", off: "Not connected" }[st]}</span></div>${connCard}</section>
+    ${ctlCardHTML()}
     <h2 class="h2 tr-sec">Virtual routes</h2><p class="small muted">Scenic walks and runs. The scenery moves at your belt speed and you're prompted to change the incline for each hill.</p>
     <div class="tr-cards">${ROUTES.map(routeCard).join("")}</div>
     <h2 class="h2 tr-sec">Interval workouts</h2><p class="small muted">Timed sessions with speed and incline targets for each block.</p>
     <div class="tr-cards">${WORKOUTS.map(routeCard).join("")}</div>
+    <h2 class="h2 tr-sec">High-intensity walking</h2><p class="small muted">Hard sessions without running: steep inclines and fast walking. Hands off the rails, short strides on steep sections, and build up over a few weeks.</p>
+    <div class="tr-cards">${HIWALKS.map(routeCard).join("")}</div>
     <div class="grid g2" style="margin-top:18px;align-items:start">
       <section class="card"><div class="card-head"><h2 class="h3">Weekly distance</h2><span class="small muted">${dU()}</span></div>${barChart(bars, { label: "Treadmill distance per week", empty: "Your weekly treadmill distance appears here." })}</section>
       <section class="card"><div class="card-head"><h2 class="h3">Recent sessions</h2></div>${h.length ? `<div class="stack" style="gap:6px">${h.slice(0, 12).map(x => `<button class="tr-hist" type="button" data-action="tr-open" data-id="${x.id}"><span><b>${esc((routeById(x.tread.route) || { name: "Treadmill" }).name)}</b><span class="small muted">${esc(prettyDate(x.date, { weekday: "short", day: "numeric", month: "short" }))}${x.tread.demo ? " · demo" : ""}</span></span><span class="mono small">${fmt(dD(x.tread.dist), 2)} ${dU()} · ${hms(x.tread.secs)}</span></button>`).join("")}</div>` : `<p class="empty">No treadmill sessions yet.</p>`}</section>
@@ -1415,13 +1442,168 @@ VIEWS.tread = () => {
         <div><span class="lbl">Pause recording when the belt stops</span><div class="seg" role="group">${[["true", "On"], ["false", "Off"]].map(([v, l]) => `<button type="button" data-action="tr-set" data-k="autoPause" data-v="${v}" aria-pressed="${String(c.autoPause) === v}">${l}</button>`).join("")}</div></div>
       </div></section>
     <details class="card tr-safety" style="margin-top:16px"><summary><b>Safety</b></summary><ul class="small">
-      <li>The app only reads the treadmill; it never starts, stops or changes speed or incline. You stay in control on the console.</li>
+      <li>The phone never starts the belt. With phone control off it only reads the treadmill; with it on, it changes speed (up to your limit) and incline while the belt is moving, and announces automatic changes 5 seconds ahead. The safety key and console STOP always win.</li>
       <li>Always clip the safety key to your clothing. Don't look down at the phone for long while running: use the spoken prompts.</li>
       <li>Mount the phone on the console shelf, not in your hand.</li>
       <li>Start every session with 3–5 minutes of walking. Stop if you feel dizzy, faint or have chest pain.</li>
       <li>Steep walking (10%+) is hard on calves and Achilles tendons: build up over a few weeks.</li></ul></details>`;
 };
 AFTER.tread = () => {};
+
+/* ============================================================
+   CAS Treadmill / CAS Trainer — phone control of speed and
+   incline over the FTMS Control Point (0x2AD9).
+   Safety rules built in:
+   • off until the user turns it on and accepts the safety notes
+   • the phone never starts the belt (no Start command is ever sent);
+     speed changes only while the belt is already moving
+   • a top-speed limit set by the user
+   • small steps per tap; automatic changes are announced 5 s ahead
+   • a STOP BELT button is always on screen while controlling
+   ============================================================ */
+const FTU = n => `0000${n}-0000-1000-8000-00805f9b34fb`;
+const CP_UUID = FTU("2ad9"), FEAT_UUID = FTU("2acc"), SR_UUID = FTU("2ad4"), IR_UUID = FTU("2ad5"), STAT_UUID = FTU("2ada");
+const CP_RESULT = { 1: "done", 2: "not supported by this treadmill", 3: "value out of range", 4: "the treadmill refused (operation failed)", 5: "control not permitted (another app may be in control, or the console needs to be on its home screen)" };
+TM.ctl = null;
+function ctlCfg() { const c = tcfg(); return { on: !!c.ctl, maxKmh: Number(c.maxKmh) || 8, auto: c.autoFollow !== false }; }
+const ctlReady = () => TM.ctl && (TM.state === "on" || TM.state === "demo");
+const ctlActive = () => ctlReady() && ctlCfg().on && TM.ctl.cp !== false;
+
+async function ctlSetup(svc) {
+  const c = { can: { speed: null, incline: null }, sr: [0.8, 20, 0.1], ir: [0, 15, 0.5], cp: null, granted: false, msg: "", pending: null, queue: Promise.resolve() };
+  TM.ctl = c;
+  const read = async uuid => { try { const ch = await svc.getCharacteristic(uuid); return await ch.readValue(); } catch (e) { return null; } };
+  const f = await read(FEAT_UUID);
+  if (f && f.byteLength >= 8) { const t = f.getUint32(4, true); c.can.speed = !!(t & 1); c.can.incline = !!(t & 2); }
+  const sr = await read(SR_UUID); if (sr && sr.byteLength >= 6) c.sr = [sr.getUint16(0, true) / 100, sr.getUint16(2, true) / 100, sr.getUint16(4, true) / 100 || 0.1];
+  const ir = await read(IR_UUID); if (ir && ir.byteLength >= 6) c.ir = [ir.getInt16(0, true) / 10, ir.getInt16(2, true) / 10, ir.getUint16(4, true) / 10 || 0.5];
+  try {
+    const cp = await svc.getCharacteristic(CP_UUID);
+    cp.addEventListener("characteristicvaluechanged", e => { const v = e.target.value; if (v && v.byteLength >= 3 && v.getUint8(0) === 0x80 && c.pending && c.pending.op === v.getUint8(1)) { const p = c.pending; c.pending = null; clearTimeout(p.to); p.res(v.getUint8(2)); } });
+    await cp.startNotifications(); c.cp = cp;
+  } catch (e) { c.cp = false; }
+  try { const st = await svc.getCharacteristic(STAT_UUID); st.addEventListener("characteristicvaluechanged", e => { const v = e.target.value; if (v && v.byteLength && v.getUint8(0) === 0x02) { c.granted = false; ctlNote("The treadmill stopped (safety key or console Stop)."); } if (v && v.byteLength && v.getUint8(0) === 0xff) { c.granted = false; } }); await st.startNotifications(); } catch (e) {}
+}
+function ctlDemoSetup() { TM.ctl = { can: { speed: true, incline: true }, sr: [0.8, 20, 0.1], ir: [0, 15, 0.5], cp: "demo", granted: true, msg: "", demo: true, queue: Promise.resolve() }; }
+function ctlNote(msg) { if (TM.ctl) TM.ctl.msg = msg; if (RS.on) runHUD(); else if (APP.tab === "tread" && !SHEETS.length) render(); }
+function ctlSend(bytes) {
+  const c = TM.ctl; if (!c) return Promise.resolve(0);
+  if (c.demo) return Promise.resolve(ctlDemoApply(bytes));
+  const run = () => new Promise(async res => {
+    const to = setTimeout(() => { c.pending = null; res(-1); }, 3500);
+    c.pending = { op: bytes[0], res, to };
+    try { const buf = new Uint8Array(bytes); if (c.cp.writeValueWithResponse) await c.cp.writeValueWithResponse(buf); else await c.cp.writeValue(buf); }
+    catch (e) { clearTimeout(to); c.pending = null; res(-2); }
+  });
+  c.queue = c.queue.then(run, run); return c.queue;
+}
+function ctlDemoApply(b) { const d = TM.demo; if (!d) return 4; if (b[0] === 0x02) d.tSpeed = (b[1] | b[2] << 8) / 100; if (b[0] === 0x03) d.tIncline = ((b[1] | b[2] << 8) << 16 >> 16) / 10; if (b[0] === 0x08) { d.tSpeed = 0; } return 1; }
+async function ctlEnsure() {
+  const c = TM.ctl; if (!c || c.cp === false) return false; if (c.granted) return true;
+  const r = await ctlSend([0x00]); if (r === 1) { c.granted = true; return true; }
+  ctlNote(r === -1 ? "The treadmill didn't answer the control request." : r === -2 ? "Couldn't send the command over Bluetooth." : `Control request: ${CP_RESULT[r] || "error " + r}.`); return false;
+}
+const beltMoving = () => (TM.data && TM.data.speed || 0) >= 0.3;
+async function ctlSpeed(kmh, quiet) {
+  const c = TM.ctl, cfg = ctlCfg(); if (!ctlActive()) return false;
+  if (!beltMoving()) { ctlNote("Start the belt on the console first. For safety the phone never starts the belt."); return false; }
+  const max = Math.min(c.sr[1], cfg.maxKmh); kmh = Math.round(clamp(kmh, Math.max(0.8, c.sr[0]), max) * 10) / 10;
+  if (!(await ctlEnsure())) return false;
+  const v = Math.round(kmh * 100), r = await ctlSend([0x02, v & 255, (v >> 8) & 255]);
+  c.tSpeed = kmh; c.tAtV = Date.now(); ctlNote(r === 1 ? (quiet ? "" : `Speed set to ${fmt(spD(kmh), 1)} ${spU()}`) : `Speed: ${CP_RESULT[r] || (r === -1 ? "no reply from treadmill" : "send failed")}.`); if (r === 1 && c.can.speed === null) c.can.speed = true; if (r === 2) c.can.speed = false;
+  return r === 1;
+}
+async function ctlIncline(p, quiet) {
+  const c = TM.ctl; if (!ctlActive()) return false;
+  p = Math.round(clamp(p, Math.max(0, c.ir[0]), Math.min(15, c.ir[1])) * 2) / 2;
+  if (!(await ctlEnsure())) return false;
+  const v = Math.round(p * 10) & 0xffff, r = await ctlSend([0x03, v & 255, (v >> 8) & 255]);
+  c.tIncline = p; c.tAtG = Date.now(); ctlNote(r === 1 ? (quiet ? "" : `Incline set to ${fmt(p, 1)}%`) : `Incline: ${CP_RESULT[r] || (r === -1 ? "no reply from treadmill" : "send failed")}.`); if (r === 1 && c.can.incline === null) c.can.incline = true; if (r === 2) c.can.incline = false;
+  return r === 1;
+}
+async function ctlStop() {
+  if (!TM.ctl) return; if (RS.on) RS.ctlPend = null;
+  const ok = await ctlEnsure(); const r = ok ? await ctlSend([0x08, 0x01]) : 0;
+  playSound("buzzer"); ctlNote(r === 1 ? "Stop sent. The belt is slowing to a stop." : "The treadmill didn't accept Stop. Use the red STOP button or pull the safety key.");
+}
+
+/* ---------- automatic following of route / workout targets ---------- */
+function ctlPlan(tg) {
+  if (!RS.on || !tg || !ctlActive() || !ctlCfg().auto) return;
+  const want = { g: Number.isFinite(tg.g) ? tg.g : null, v: RS.route.mode === "time" && tg.v ? Math.min(tg.v, ctlCfg().maxKmh) : null, seg: RS.seg };
+  const curV = TM.data.speed || 0, curG = TM.data.incline || 0;
+  const needV = want.v != null && Math.abs(want.v - curV) > 0.15, needG = want.g != null && Math.abs(want.g - curG) > 0.4;
+  if (!needV && !needG) return;
+  RS.ctlPend = Object.assign(want, { at: Date.now() + 5000, needV, needG });
+  const parts = []; if (needV) parts.push(`speed ${want.v > curV ? "up" : "down"} to ${fmt(spD(want.v), 1)}`); if (needG) parts.push(`incline ${want.g > curG ? "up" : "down"} to ${fmt(want.g, 0)} percent`);
+  runPrompt(`In 5 seconds: ${parts.join(" and ")}.`, true);
+}
+function ctlTick() {
+  if (!RS.on || !ctlActive() || !ctlCfg().auto) return;
+  const p = RS.ctlPend;
+  if (!p && RS.target && beltMoving() && RS.ctlSeg !== RS.seg) { RS.ctlSeg = RS.seg; ctlPlan(RS.target); return; }
+  if (p && Date.now() >= p.at) { RS.ctlPend = null; if (!beltMoving()) return; if (p.needG) ctlIncline(p.g, true); if (p.needV) ctlSpeed(p.v, true); }
+}
+setInterval(ctlTick, 500);
+
+/* ---------- UI ---------- */
+function ctlSupportText() {
+  const c = TM.ctl; if (!c) return "";
+  if (c.demo) return "Demo treadmill: phone control is simulated.";
+  if (c.cp === false) return "This treadmill doesn't offer the Bluetooth control channel, so speed and incline must be changed on the console.";
+  const s = c.can.speed, i = c.can.incline;
+  if (s === false && i === false) return "This treadmill says it doesn't accept speed or incline commands. You can still try, but expect “not supported”.";
+  if (s && i) return "This treadmill accepts speed and incline commands.";
+  return "This treadmill has a control channel. The first command will confirm what it accepts.";
+}
+function ctlCardHTML() {
+  if (!(TM.state === "on" || TM.state === "demo") || !TM.ctl) return "";
+  const cfg = ctlCfg(), c = TM.ctl;
+  return `<section class="card tr-ctl-card"><div class="card-head"><h2 class="h3">Phone control</h2><span class="pill ${cfg.on && c.cp !== false ? "good" : ""}">${cfg.on && c.cp !== false ? "On" : "Off"}</span></div>
+    <p class="small">${esc(ctlSupportText())}</p>
+    ${c.cp === false ? "" : cfg.on ? `<div class="stack" style="gap:10px;margin-top:8px">
+      <div><span class="lbl">Top speed the phone may set</span><div class="seg" role="group">${[5, 6.5, 8, 10, 12, 14].map(v => `<button type="button" data-action="ctl-max" data-v="${v}" aria-pressed="${cfg.maxKmh === v}">${fmt(spD(v), 1)}</button>`).join("")}</div><span class="small muted">${spU()}</span></div>
+      <div><span class="lbl">Follow route and workout targets automatically</span><div class="seg" role="group"><button type="button" data-action="ctl-auto" data-v="1" aria-pressed="${cfg.auto}">On</button><button type="button" data-action="ctl-auto" data-v="0" aria-pressed="${!cfg.auto}">Off</button></div></div>
+      <button class="btn sm ghost" type="button" data-action="ctl-off">Turn phone control off</button></div>`
+    : `<button class="btn primary" type="button" data-action="ctl-on" style="margin-top:8px">Turn on phone control</button>`}
+    ${c.msg ? `<div class="note" style="margin-top:8px">${esc(c.msg)}</div>` : ""}</section>`;
+}
+function ctlBarHTML() {
+  const demoConsole = TM.state === "demo" ? `<div class="tr-demo"><span class="small muted">Demo console</span><button class="btn sm" type="button" data-action="dm" data-k="speed" data-d="${(TM.demo && TM.demo.speed) > 0 ? -0.5 : 3}">${(TM.demo && TM.demo.speed) > 0 ? "− speed" : "START belt"}</button><button class="btn sm" type="button" data-action="dm" data-k="speed" data-d="0.5">+ speed</button><button class="btn sm" type="button" data-action="dm" data-k="incline" data-d="-1">− incline</button><button class="btn sm" type="button" data-action="dm" data-k="incline" data-d="1">+ incline</button></div>` : "";
+  if (!ctlActive()) {
+    const offer = (TM.state === "on" || TM.state === "demo") && TM.ctl && TM.ctl.cp !== false && !ctlCfg().on;
+    return demoConsole + (offer ? `<button class="btn sm" type="button" data-action="ctl-on">Control speed and incline from this phone</button>` : "");
+  }
+  const c = TM.ctl, cfg = ctlCfg(), v = TM.data.speed || 0, g = TM.data.incline || 0, moving = beltMoving(), tv = Date.now() - (c.tAtV || 0) < 6000 ? c.tSpeed : null, tg2 = Date.now() - (c.tAtG || 0) < 8000 ? c.tIncline : null;
+  const p = RS.ctlPend, wait = p ? Math.max(0, Math.ceil((p.at - Date.now()) / 1000)) : 0;
+  return `${demoConsole}<div class="tr-ctl">
+    <div class="tr-ctl-row"><span class="lbl">Speed</span><button class="ctl-b" type="button" data-action="ctl-step" data-k="v" data-d="-0.5" aria-label="Slower">−</button><b>${fmt(spD(v), 1)}<small>${spU()}${tv != null && Math.abs(tv - v) > 0.05 ? ` → ${fmt(spD(tv), 1)}` : ""}</small></b><button class="ctl-b" type="button" data-action="ctl-step" data-k="v" data-d="0.5" aria-label="Faster" ${moving ? "" : "disabled"}>+</button></div>
+    <div class="tr-ctl-row"><span class="lbl">Incline</span><button class="ctl-b" type="button" data-action="ctl-step" data-k="g" data-d="-1" aria-label="Lower incline">−</button><b>${fmt(g, 1)}<small>%${tg2 != null && Math.abs(tg2 - g) > 0.2 ? ` → ${fmt(tg2, 1)}` : ""}</small></b><button class="ctl-b" type="button" data-action="ctl-step" data-k="g" data-d="1" aria-label="Raise incline">+</button></div>
+    <div class="chips">${[0, 3, 6, 9, 12, 15].map(x => `<button class="chip" type="button" data-action="ctl-inc" data-v="${x}">${x}%</button>`).join("")}</div>
+    <label class="small"><input type="checkbox" data-change="ctl-auto-cb" ${cfg.auto ? "checked" : ""}> Follow targets automatically (announced 5 s before)</label>
+    ${p ? `<div class="note warn">Changing in ${wait} s… <button class="linkish" type="button" data-action="ctl-cancel">cancel</button></div>` : ""}
+    ${!moving ? `<div class="small muted">Start the belt with the green START button on the console. The phone can't start it.</div>` : ""}
+    ${c.msg ? `<div class="small">${esc(c.msg)}</div>` : ""}
+</div>`;
+}
+ACTIONS["ctl-on"] = () => openSheet(`${sheetHead("Phone control", "Read before you turn it on")}
+  <ul class="small" style="padding-left:18px;display:flex;flex-direction:column;gap:6px;margin:8px 0">
+    <li>Clip the <b>safety key</b> to your clothing every time. It stops the belt instantly, whatever the phone does.</li>
+    <li>The phone <b>never starts the belt</b>. You start it on the console; the phone only changes speed and incline while it's moving.</li>
+    <li>Automatic changes are <b>announced 5 seconds before</b> they happen, and you can cancel them.</li>
+    <li>Keep the phone on the console shelf, not in your hand. Use the big <b>STOP BELT</b> button or the console STOP if anything feels wrong.</li>
+    <li>For the first session, start at a slow walk with someone nearby, and check each change happens as expected.</li>
+    <li>If Bluetooth drops, the treadmill keeps its last speed. Use the console.</li></ul>
+  <div class="row" style="margin-top:12px"><button class="btn ghost" type="button" data-action="close-sheet">Not now</button><span class="spacer"></span><button class="btn primary" type="button" data-action="ctl-accept">I understand, turn it on</button></div>`);
+ACTIONS["ctl-accept"] = () => { const c = tcfg(); c.ctl = true; Store.set("treadcfg", c); closeSheet(); if (TM.ctl) TM.ctl.msg = ""; toast("Phone control on"); if (RS.on) runHUD(); else render(); };
+ACTIONS["ctl-off"] = () => { const c = tcfg(); c.ctl = false; Store.set("treadcfg", c); if (RS.on) RS.ctlPend = null; render(); };
+ACTIONS["ctl-max"] = el => { const c = tcfg(); c.maxKmh = Number(el.dataset.v); Store.set("treadcfg", c); render(); };
+ACTIONS["ctl-auto"] = el => { const c = tcfg(); c.autoFollow = el.dataset.v === "1"; Store.set("treadcfg", c); render(); };
+CHANGES["ctl-auto-cb"] = el => { const c = tcfg(); c.autoFollow = el.checked; Store.set("treadcfg", c); if (!el.checked) RS.ctlPend = null; else RS.ctlSeg = -1; runHUD(); };
+ACTIONS["ctl-cancel"] = () => { RS.ctlPend = null; runPrompt("Change cancelled.", false); runHUD(); };
+ACTIONS["ctl-step"] = el => { const c = TM.ctl; if (!c) return; const now = Date.now(); if (el.dataset.k === "v") ctlSpeed((now - (c.tAtV || 0) < 6000 ? c.tSpeed : TM.data.speed || 0) + Number(el.dataset.d)); else ctlIncline((now - (c.tAtG || 0) < 8000 ? c.tIncline : TM.data.incline || 0) + Number(el.dataset.d)); };
+ACTIONS["ctl-inc"] = el => ctlIncline(Number(el.dataset.v));
+ACTIONS["ctl-stop"] = () => ctlStop();
 
 /* ============================================================
    CAS Treadmill — companion page for Bluefy (no sign-in).
